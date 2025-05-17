@@ -1,0 +1,13 @@
+{
+  "name": "movie-app-backend",
+  "version": "1.0.0",
+  "description": "Movie App Backend with Spring Boot",
+  "scripts": {
+    "format": "prettier --write \"**/*.{java,js,json,md,yml}\"",
+    "format:check": "prettier --check \"**/*.{java,js,json,md,yml}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "prettier-plugin-java": "^2.6.0"
+  }
+} 
