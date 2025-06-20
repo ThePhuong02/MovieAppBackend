@@ -6,23 +6,23 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import movieapp.webmovie.entity.User;
 import movieapp.webmovie.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtTokenUtil jwtUtil;
+    private final JwtTokenUtil jwtUtil;
+    private final UserService userService;
 
-    @Autowired
-    private UserService userService;
+    // ✅ Constructor để inject dependencies
+    public JwtAuthenticationFilter(JwtTokenUtil jwtUtil, UserService userService) {
+        this.jwtUtil = jwtUtil;
+        this.userService = userService;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,7 +32,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // ✅ Chỉ bỏ qua xác thực cho các API công khai
         if (path.equals("/api/auth/login")
                 || path.equals("/api/auth/register")
                 || path.equals("/api/auth/forgot-password")
@@ -41,13 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // ✅ Lấy token từ header Authorization
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
-            // ✅ Lấy email từ token
             String email = jwtUtil.getEmailFromToken(token);
 
             if (email != null && jwtUtil.validateToken(token)) {
@@ -63,7 +60,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // ✅ Tiếp tục chuỗi filter
         filterChain.doFilter(request, response);
     }
 }

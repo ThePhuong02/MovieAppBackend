@@ -1,6 +1,6 @@
-// movieapp.webmovie.service.UserService.java
 package movieapp.webmovie.service;
 
+import movieapp.webmovie.dto.UserResponseDTO;
 import movieapp.webmovie.entity.User;
 import java.util.Optional;
 import java.util.List;
@@ -14,8 +14,9 @@ public interface UserService {
 
     Optional<User> findByResetToken(String token);
 
-    List<User> getAllUsers();
+    List<User> getAllUsers(); // full entity (admin nội bộ dùng)
 
-    // ✅ Thêm phương thức cập nhật role
+    List<UserResponseDTO> getAllUserResponses(); // trả về DTO an toàn
+
     void updateUserRole(Integer userId, String newRole);
 }

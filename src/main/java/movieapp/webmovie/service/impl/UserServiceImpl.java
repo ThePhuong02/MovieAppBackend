@@ -1,26 +1,32 @@
 package movieapp.webmovie.service.impl;
 
+import movieapp.webmovie.dto.UserResponseDTO;
 import movieapp.webmovie.entity.User;
 import movieapp.webmovie.enums.Role;
 import movieapp.webmovie.repository.UserRepository;
 import movieapp.webmovie.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class UserServiceImpl implements UserService, UserDetailsService {
+public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Override
     public User saveUser(User user) {
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new IllegalArgumentException("Email đã tồn tại");
+        }
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
     }
 
@@ -49,7 +55,19 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         return userRepository.findAll();
     }
 
-    // ✅ Thêm chức năng cập nhật role người dùng
+    @Override
+    public List<UserResponseDTO> getAllUserResponses() {
+        return userRepository.findAll().stream()
+                .map(u -> new UserResponseDTO(
+                        u.getUserID(),
+                        u.getName(),
+                        u.getEmail(),
+                        u.getPhone(),
+                        u.getAvatar(),
+                        u.getRole().name()))
+                .toList();
+    }
+
     @Override
     public void updateUserRole(Integer userId, String newRole) {
         User user = userRepository.findById(userId)
@@ -62,12 +80,5 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Role không hợp lệ! Chỉ chấp nhận: USER, STAFF, ADMIN.");
         }
-    }
-
-    // ✅ Phục vụ cho Spring Security xác thực tài khoản qua email
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với email: " + email));
     }
 }
