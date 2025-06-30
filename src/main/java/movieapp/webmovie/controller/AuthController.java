@@ -37,12 +37,14 @@ public class AuthController {
         if (userService.findByEmail(dto.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Email đã tồn tại");
         }
+
         User user = new User();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setPassword(dto.getPassword()); // ❗ Không mã hóa ở đây
         user.setRole(Role.USER);
-        userService.saveUser(user);
+        userService.saveUser(user); // ❗ Service sẽ mã hóa
+
         return ResponseEntity.ok("Đăng ký thành công");
     }
 
