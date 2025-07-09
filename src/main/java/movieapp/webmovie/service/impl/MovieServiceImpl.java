@@ -1,21 +1,30 @@
 package movieapp.webmovie.service.impl;
 
+import movieapp.webmovie.converter.MovieConverter;
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.dto.MovieResponseDTO;
 import movieapp.webmovie.entity.Movie;
 import movieapp.webmovie.repository.MovieRepository;
+import movieapp.webmovie.repository.custom.MovieRepositoryCustom;
 import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class MovieServiceImpl implements MovieService {
 
     @Autowired
+    private MovieRepositoryCustom movieRepositoryCustom;
+    @Autowired
     private MovieRepository movieRepository;
+    @Autowired
+    private MovieConverter movieConverter;
 
     private MovieDTO convertToDTO(Movie movie) {
         return MovieDTO.builder()
@@ -40,6 +49,17 @@ public class MovieServiceImpl implements MovieService {
         movie.setAccessLevel(dto.getAccessLevel());
         movie.setTrailerURL(dto.getTrailerURL());
         movie.setVideoURL(dto.getVideoURL());
+    }
+
+    @Override
+    public List<MovieResponseDTO> findAll(Map<String, Object> params) {
+        List<Movie> movieEntity = movieRepositoryCustom.findAll(params);
+        List<MovieResponseDTO> results = new ArrayList<>();
+        for(Movie it : movieEntity){
+            MovieResponseDTO movieResponseDTO = movieConverter.movieResponseDTO(it);
+            results.add(movieResponseDTO);
+        }
+        return results;
     }
 
     @Override

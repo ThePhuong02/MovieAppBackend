@@ -2,6 +2,7 @@ package movieapp.webmovie.controller;
 
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.dto.MovieResponseDTO;
 import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/movies")
@@ -22,6 +24,12 @@ public class MovieController {
     @GetMapping
     public List<MovieDTO> getAllMovies() {
         return movieService.getAllMovies();
+    }
+
+    @GetMapping("/list")
+    public Object getMovieList(@RequestParam Map<String, Object> params){
+        List<MovieResponseDTO> result = movieService.findAll(params);
+        return result;
     }
 
     // ✅ ADMIN & STAFF: Xem chi tiết

@@ -7,11 +7,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import movieapp.webmovie.entity.User;
 import movieapp.webmovie.service.UserService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -50,8 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 User user = userService.findByEmail(email).orElse(null);
 
                 if (user != null) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            user, null, user.getAuthorities());
+                    String role = jwtUtil.getRoleFromToken(token); // giả sử bạn có hàm này
+                    List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
+
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(email, null, authorities);
+
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);

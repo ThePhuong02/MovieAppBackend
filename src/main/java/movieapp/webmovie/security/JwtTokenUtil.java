@@ -8,8 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Date;
 import java.util.Base64;
+import java.util.Date;
 
 @Component
 public class JwtTokenUtil {
@@ -39,15 +39,24 @@ public class JwtTokenUtil {
 
     // ✅ Trích xuất email (subject) từ token
     public String getEmailFromToken(String token) {
+        return getAllClaimsFromToken(token).getSubject();
+    }
+
+    // ✅ Trích xuất role từ token
+    public String getRoleFromToken(String token) {
+        return getAllClaimsFromToken(token).get("role", String.class);
+    }
+
+    // ✅ Lấy toàn bộ claims (payload) trong token
+    private Claims getAllClaimsFromToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .getBody();
     }
 
-    // ✅ Kiểm tra token hợp lệ
+    // ✅ Kiểm tra token có hợp lệ không (chữ ký, định dạng, hạn)
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -55,5 +64,11 @@ public class JwtTokenUtil {
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    // ✅ (Tuỳ chọn) Kiểm tra token đã hết hạn chưa
+    public boolean isTokenExpired(String token) {
+        Date expiration = getAllClaimsFromToken(token).getExpiration();
+        return expiration.before(new Date());
     }
 }
