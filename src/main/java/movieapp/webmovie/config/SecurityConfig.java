@@ -21,19 +21,35 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    // ✅ Inject UserService để tạo JwtAuthenticationFilter thủ công
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenUtil jwtUtil, UserService userService) {
         return new JwtAuthenticationFilter(jwtUtil, userService);
     }
 
-    // ✅ Cấu hình filter chain
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // ✅ Public routes
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/paypal/**",
+                                "/api/payments/webhook",
+                                "/success",
+                                "/cancel")
+                        .permitAll()
+
+                        // ✅ USER & ADMIN đều có thể xem các gói
+                        .requestMatchers("/api/plans/**").hasAnyRole("USER", "ADMIN")
+
+                        // ✅ USER & ADMIN: tự xem thông tin thanh toán của chính mình
+                        .requestMatchers("/api/payments/me").hasAnyRole("USER", "ADMIN")
+
+                        // ✅ ADMIN: xem thanh toán của từng người hoặc tất cả
+                        .requestMatchers("/api/payments/user/**", "/api/payments/all").hasRole("ADMIN")
+
+                        // ✅ Các route khác yêu cầu xác thực
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -42,26 +58,23 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // ✅ Cấu hình mã hóa mật khẩu
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // ✅ Cấu hình AuthenticationManager
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // ✅ CORS configuration
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:3000")
+                        .allowedOrigins("http://localhost:3000") // hoặc frontend của bạn
                         .allowedMethods("*")
                         .allowedHeaders("*")
                         .allowCredentials(true);

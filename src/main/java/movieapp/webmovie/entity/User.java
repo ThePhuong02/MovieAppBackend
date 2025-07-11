@@ -19,7 +19,7 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer userID;
+    private Long userID;
 
     private String name;
 
@@ -35,6 +35,7 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Column(name = "reset_token")
     private String resetToken;
 
     // ✅ Cung cấp quyền truy cập dựa theo Role (ví dụ: ROLE_USER, ROLE_ADMIN)
