@@ -13,12 +13,15 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.Random;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin // Mở CORS khi test frontend
+@CrossOrigin
 public class AuthController {
 
     @Autowired
@@ -41,9 +44,9 @@ public class AuthController {
         User user = new User();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword()); // ❗ Không mã hóa ở đây
+        user.setPassword(dto.getPassword());
         user.setRole(Role.USER);
-        userService.saveUser(user); // ❗ Service sẽ mã hóa
+        userService.saveUser(user);
 
         return ResponseEntity.ok("Đăng ký thành công");
     }
@@ -81,6 +84,7 @@ public class AuthController {
         return ResponseEntity.ok("Đổi mật khẩu thành công");
     }
 
+    // ✅ Cập nhật thông tin cơ bản (không xử lý ảnh file)
     @PutMapping("/update-profile")
     public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileDTO dto, Authentication auth) {
         User user = (User) auth.getPrincipal();
@@ -88,10 +92,36 @@ public class AuthController {
         user.setPhone(dto.getPhone());
 
         if (dto.getAvatar() != null) {
-            user.setAvatar(dto.getAvatar());
+            user.setAvatar(dto.getAvatar()); // chỉ dùng nếu FE gửi chuỗi avatar
         }
 
         userService.saveUser(user);
-        return ResponseEntity.ok("Cập nhật thành công");
+        return ResponseEntity.ok("Cập nhật thông tin thành công");
+    }
+
+    // ✅ Gửi link avatar (Postman)
+    @PutMapping("/update-avatar-link")
+    public ResponseEntity<?> updateAvatarLink(@RequestBody Map<String, String> body, Authentication auth) {
+        User user = (User) auth.getPrincipal();
+        String avatarUrl = body.get("avatar");
+
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return ResponseEntity.badRequest().body("Avatar URL không hợp lệ");
+        }
+
+        userService.updateAvatarByLink(user, avatarUrl);
+        return ResponseEntity.ok("Cập nhật avatar thành công (dùng link)");
+    }
+
+    // ✅ Upload ảnh thực tế từ file (FE dùng multipart/form-data)
+    @PutMapping("/upload-avatar")
+    public ResponseEntity<?> uploadAvatar(@RequestParam("avatar") MultipartFile avatarFile, Authentication auth) {
+        User user = (User) auth.getPrincipal();
+        try {
+            userService.updateAvatarByFile(user, avatarFile);
+            return ResponseEntity.ok("Upload ảnh thành công");
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body("Lỗi khi upload ảnh");
+        }
     }
 }

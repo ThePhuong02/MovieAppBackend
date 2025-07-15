@@ -37,7 +37,8 @@ public class SecurityConfig {
                                 "/api/paypal/**",
                                 "/api/payments/webhook",
                                 "/success",
-                                "/cancel")
+                                "/cancel",
+                                "/uploads/**")
                         .permitAll()
 
                         // ✅ USER & ADMIN đều có thể xem các gói

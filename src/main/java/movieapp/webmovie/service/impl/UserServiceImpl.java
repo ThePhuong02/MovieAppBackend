@@ -88,27 +88,25 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    // ✅ THÊM: Cập nhật avatar bằng link
     @Override
     public void updateAvatarByLink(User user, String avatarUrl) {
         user.setAvatar(avatarUrl);
         userRepository.save(user);
     }
 
-    // ✅ THÊM: Cập nhật avatar bằng file
     @Override
     public void updateAvatarByFile(User user, MultipartFile avatarFile) throws IOException {
         String fileName = UUID.randomUUID() + "_" + avatarFile.getOriginalFilename();
-        Path path = Paths.get(uploadDir);
+        Path uploadPath = Paths.get(uploadDir);
 
-        if (!Files.exists(path)) {
-            Files.createDirectories(path);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
         }
 
-        Path fullPath = path.resolve(fileName);
-        Files.write(fullPath, avatarFile.getBytes());
+        Path filePath = uploadPath.resolve(fileName);
+        Files.write(filePath, avatarFile.getBytes());
 
-        user.setAvatar("/" + uploadDir + fileName); // trả về đường dẫn truy cập
+        user.setAvatar("/" + uploadDir + fileName); // để truy cập qua URL tĩnh
         userRepository.save(user);
     }
 }
