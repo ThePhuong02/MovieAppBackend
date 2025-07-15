@@ -8,9 +8,13 @@ import movieapp.webmovie.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.*;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -20,6 +24,8 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    private final String uploadDir = "uploads/avatars/";
 
     @Override
     public User saveUser(User user) {
@@ -80,5 +86,29 @@ public class UserServiceImpl implements UserService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Role không hợp lệ! Chỉ chấp nhận: USER, STAFF, ADMIN.");
         }
+    }
+
+    // ✅ THÊM: Cập nhật avatar bằng link
+    @Override
+    public void updateAvatarByLink(User user, String avatarUrl) {
+        user.setAvatar(avatarUrl);
+        userRepository.save(user);
+    }
+
+    // ✅ THÊM: Cập nhật avatar bằng file
+    @Override
+    public void updateAvatarByFile(User user, MultipartFile avatarFile) throws IOException {
+        String fileName = UUID.randomUUID() + "_" + avatarFile.getOriginalFilename();
+        Path path = Paths.get(uploadDir);
+
+        if (!Files.exists(path)) {
+            Files.createDirectories(path);
+        }
+
+        Path fullPath = path.resolve(fileName);
+        Files.write(fullPath, avatarFile.getBytes());
+
+        user.setAvatar("/" + uploadDir + fileName); // trả về đường dẫn truy cập
+        userRepository.save(user);
     }
 }
