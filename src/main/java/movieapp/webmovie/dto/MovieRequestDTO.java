@@ -15,5 +15,5 @@ public class MovieRequestDTO {
     private String poster;
     private AccessLevel accessLevel;
     private String trailerURL;
-    private String videoURL;
+    private String videoURL; // ⬅ Cloudinary video URL dán vào đây
 }

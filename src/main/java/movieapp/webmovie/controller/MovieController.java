@@ -2,10 +2,12 @@ package movieapp.webmovie.controller;
 
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.security.CustomUserDetails;
 import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -52,5 +54,13 @@ public class MovieController {
     public ResponseEntity<?> deleteMovie(@PathVariable Long id) {
         movieService.deleteMovie(id);
         return ResponseEntity.ok("Deleted movie with id: " + id);
+    }
+
+    // ✅ USER: Xem phim (Play)
+    @PreAuthorize("hasAnyRole('USER','ADMIN','STAFF')")
+    @GetMapping("/{id}/play")
+    public ResponseEntity<?> playMovie(@PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(movieService.getMoviePlayInfo(id, userDetails.getUser().getUserID()));
     }
 }

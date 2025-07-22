@@ -6,10 +6,13 @@ import movieapp.webmovie.entity.Genre;
 import movieapp.webmovie.entity.Movie;
 import movieapp.webmovie.repository.GenreRepository;
 import movieapp.webmovie.repository.MovieRepository;
+import movieapp.webmovie.repository.SubscriptionRepository;
+import movieapp.webmovie.repository.PlaybackRightRepository;
 import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +24,12 @@ public class MovieServiceImpl implements MovieService {
 
     @Autowired
     private GenreRepository genreRepository;
+
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+
+    @Autowired
+    private PlaybackRightRepository playbackRightRepository;
 
     private MovieDTO convertToDTO(Movie movie) {
         return MovieDTO.builder()
@@ -102,10 +111,8 @@ public class MovieServiceImpl implements MovieService {
     public void addGenreToMovie(Long movieId, Long genreId) {
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
-
         Genre genre = genreRepository.findById(genreId)
                 .orElseThrow(() -> new IllegalArgumentException("Genre not found"));
-
         movie.getGenres().add(genre);
         movieRepository.save(movie);
     }
@@ -114,10 +121,8 @@ public class MovieServiceImpl implements MovieService {
     public void removeGenreFromMovie(Long movieId, Long genreId) {
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
-
         Genre genre = genreRepository.findById(genreId)
                 .orElseThrow(() -> new IllegalArgumentException("Genre not found"));
-
         movie.getGenres().remove(genre);
         movieRepository.save(movie);
     }
@@ -127,5 +132,30 @@ public class MovieServiceImpl implements MovieService {
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
         return new ArrayList<>(movie.getGenres());
+    }
+
+    // ✅ MỚI: Kiểm tra quyền xem phim
+    @Override
+    public MovieDTO getMoviePlayInfo(Long movieId, Long userId) {
+        Movie movie = movieRepository.findById(movieId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phim"));
+
+        if (movie.getAccessLevel().name().equalsIgnoreCase("FREE")) {
+            return convertToDTO(movie);
+        }
+
+        boolean hasSub = subscriptionRepository.existsByUserIdAndIsActiveTrue(userId);
+        if (hasSub) {
+            return convertToDTO(movie);
+        }
+
+        boolean hasRight = playbackRightRepository.existsByUserIdAndMovieIdAndExpireAtAfter(
+                userId, movieId, LocalDateTime.now());
+
+        if (hasRight) {
+            return convertToDTO(movie);
+        }
+
+        throw new RuntimeException("Bạn không có quyền xem phim này.");
     }
 }

@@ -31,7 +31,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        // ✅ Public routes
+                        // ✅ Các route public
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/paypal/**",
@@ -39,20 +39,22 @@ public class SecurityConfig {
                                 "/success",
                                 "/cancel",
                                 "/uploads/**",
-                                "/api/paypal/capture-order", // ✅ Cho phép truy cập không cần token
-                                "/api/paypal/paypal-success")
+                                "/api/paypal/capture-order",
+                                "/api/paypal/paypal-success",
+                                "/notifications/**")
                         .permitAll()
 
-                        // ✅ USER & ADMIN đều có thể xem các gói
+                        // ✅ Thêm dòng này để cho phép user truy cập endpoints liên quan đến thông báo
+                        .requestMatchers("/notifications/**").hasAnyRole("USER", "ADMIN", "STAFF")
+
+                        // ✅ Cho phép xem gói
                         .requestMatchers("/api/plans/**").hasAnyRole("USER", "ADMIN")
 
-                        // ✅ USER & ADMIN: tự xem thông tin thanh toán của chính mình
                         .requestMatchers("/api/payments/me").hasAnyRole("USER", "ADMIN")
 
-                        // ✅ ADMIN: xem thanh toán của từng người hoặc tất cả
                         .requestMatchers("/api/payments/user/**", "/api/payments/all").hasRole("ADMIN")
 
-                        // ✅ Các route khác yêu cầu xác thực
+                        // ✅ Các route còn lại bắt buộc phải đăng nhập
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

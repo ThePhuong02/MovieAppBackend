@@ -17,15 +17,15 @@ public interface MovieService {
 
     void deleteMovie(Long id);
 
-    // Gán nhiều thể loại cho phim
+    // Thể loại
     void assignGenresToMovie(Long movieId, List<Long> genreIds);
 
-    // Thêm 1 thể loại cho phim
     void addGenreToMovie(Long movieId, Long genreId);
 
-    // Gỡ 1 thể loại khỏi phim
     void removeGenreFromMovie(Long movieId, Long genreId);
 
-    // Lấy tất cả thể loại của 1 phim
     List<Genre> getGenresByMovie(Long movieId);
+
+    // 👇 THÊM MỚI
+    MovieDTO getMoviePlayInfo(Long movieId, Long userId);
 }
