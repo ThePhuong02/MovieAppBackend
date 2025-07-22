@@ -32,8 +32,7 @@ public class PaymentController {
     // ✅ Lấy danh sách thanh toán của người dùng hiện tại (user self-check)
     @GetMapping("/me")
     public ResponseEntity<List<Payment>> getMyPayments(@AuthenticationPrincipal UserDetails userDetails) {
-        String email = userDetails.getUsername(); // lấy từ JWT
-
+        String email = userDetails.getUsername(); // lấy email từ token
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 

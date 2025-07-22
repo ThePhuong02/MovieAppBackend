@@ -1,17 +1,21 @@
 package movieapp.webmovie.entity;
 
-import lombok.Data;
+import jakarta.persistence.*;
+import lombok.*;
 import movieapp.webmovie.enums.PaymentStatus;
 import movieapp.webmovie.enums.PaymentType;
 import org.hibernate.annotations.CreationTimestamp;
 
-import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
 @Entity
 @Table(name = "Payments")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Payment {
 
     @Id
@@ -42,4 +46,8 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     @Column(name = "PaymentType", nullable = false)
     private PaymentType paymentType;
+
+    @Column(name = "PlanID")
+    private Long planId;
+
 }

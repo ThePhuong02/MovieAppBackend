@@ -38,7 +38,9 @@ public class SecurityConfig {
                                 "/api/payments/webhook",
                                 "/success",
                                 "/cancel",
-                                "/uploads/**")
+                                "/uploads/**",
+                                "/api/paypal/capture-order", // ✅ Cho phép truy cập không cần token
+                                "/api/paypal/paypal-success")
                         .permitAll()
 
                         // ✅ USER & ADMIN đều có thể xem các gói

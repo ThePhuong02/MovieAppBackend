@@ -22,7 +22,7 @@ public class AdminController {
     // ✅ Cập nhật vai trò người dùng
     @PutMapping("/users/{id}/role")
     public ResponseEntity<String> updateUserRole(
-            @PathVariable Integer id,
+            @PathVariable Long id,
             @Valid @RequestBody UserRoleUpdateRequest request) {
 
         userService.updateUserRole(id, request.getRole());

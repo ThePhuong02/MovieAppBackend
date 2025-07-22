@@ -21,12 +21,13 @@ public class PayPalService {
     @Value("${paypal.cancel.url}")
     private String cancelUrl;
 
-    public String createOrder(String amount) throws IOException {
+    // ✅ Truyền thêm transactionRef để lưu vào đơn hàng PayPal
+    public String createOrder(String amount, String transactionRef) throws IOException {
         OrderRequest orderRequest = new OrderRequest();
         orderRequest.checkoutPaymentIntent("CAPTURE");
 
         ApplicationContext context = new ApplicationContext()
-                .returnUrl(returnUrl)
+                .returnUrl(returnUrl + "?transactionRef=" + transactionRef) // 👈 trả về kèm ref
                 .cancelUrl(cancelUrl);
 
         AmountWithBreakdown amountObj = new AmountWithBreakdown()
@@ -34,7 +35,8 @@ public class PayPalService {
                 .value(amount);
 
         PurchaseUnitRequest purchaseUnitRequest = new PurchaseUnitRequest()
-                .amountWithBreakdown(amountObj);
+                .amountWithBreakdown(amountObj)
+                .customId(transactionRef); // 👈 Gửi ref vào PayPal để tra cứu sau
 
         orderRequest.applicationContext(context)
                 .purchaseUnits(List.of(purchaseUnitRequest));
@@ -43,10 +45,9 @@ public class PayPalService {
 
         Order order = payPalClient.execute(request).result();
 
-        // Lấy link để redirect khách đến PayPal thanh toán
         for (LinkDescription link : order.links()) {
-            if (link.rel().equals("approve")) {
-                return link.href(); // URL để redirect
+            if ("approve".equals(link.rel())) {
+                return link.href();
             }
         }
 
@@ -59,7 +60,7 @@ public class PayPalService {
 
         Order order = payPalClient.execute(request).result();
 
-        if (order.status().equals("COMPLETED")) {
+        if ("COMPLETED".equals(order.status())) {
             return "Giao dịch thành công! ID: " + order.id();
         } else {
             return "Giao dịch không thành công! Trạng thái: " + order.status();

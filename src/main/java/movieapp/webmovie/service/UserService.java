@@ -21,7 +21,7 @@ public interface UserService {
 
     List<UserResponseDTO> getAllUserResponses();
 
-    void updateUserRole(Integer userId, String newRole);
+    void updateUserRole(Long userId, String newRole);
 
     void updateAvatarByLink(User user, String avatarUrl);
 

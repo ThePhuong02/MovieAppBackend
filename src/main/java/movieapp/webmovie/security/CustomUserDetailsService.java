@@ -1,6 +1,6 @@
 package movieapp.webmovie.security;
 
-// import movieapp.webmovie.entity.User;
+import movieapp.webmovie.entity.User;
 import movieapp.webmovie.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.*;
@@ -14,7 +14,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với email: " + email));
+        return new CustomUserDetails(user);
     }
 }

@@ -6,5 +6,5 @@ import lombok.Data;
 public class SubscriptionRequest {
     private Long userId;
     private Long planId;
-    private String paymentMethod; // "momo", "vnpay"
+    private String paymentMethod;
 }

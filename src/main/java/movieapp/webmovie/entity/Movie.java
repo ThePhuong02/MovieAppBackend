@@ -4,12 +4,18 @@ import jakarta.persistence.*;
 import lombok.*;
 import movieapp.webmovie.enums.AccessLevel;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "Movies")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(exclude = "genres")
+@ToString(exclude = "genres")
 public class Movie {
 
     @Id
@@ -17,14 +23,14 @@ public class Movie {
     @Column(name = "MovieID")
     private Long movieID;
 
-    @Column(name = "Title")
+    @Column(name = "Title", nullable = false)
     private String title;
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "Duration")
-    private Integer duration;
+    private Integer duration; // minutes
 
     @Column(name = "Year")
     private Integer year;
@@ -33,7 +39,7 @@ public class Movie {
     private String poster;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "AccessLevel", nullable = false)
+    @Column(name = "AccessLevel")
     private AccessLevel accessLevel;
 
     @Column(name = "TrailerURL")
@@ -41,4 +47,8 @@ public class Movie {
 
     @Column(name = "VideoURL")
     private String videoURL;
+
+    @ManyToMany
+    @JoinTable(name = "MovieGenres", joinColumns = @JoinColumn(name = "MovieID"), inverseJoinColumns = @JoinColumn(name = "GenreID"))
+    private Set<Genre> genres = new HashSet<>();
 }

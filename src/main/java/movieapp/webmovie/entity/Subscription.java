@@ -31,4 +31,11 @@ public class Subscription {
 
     @Column(name = "PaymentID")
     private Long paymentId;
+
+    @Column(name = "isCancelled")
+    private Boolean isCancelled = false;
+
+    @Column(name = "autoRenew")
+    private Boolean autoRenew;
+
 }

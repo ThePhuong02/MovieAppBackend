@@ -3,6 +3,7 @@ package movieapp.webmovie.controller;
 import movieapp.webmovie.dto.*;
 import movieapp.webmovie.entity.User;
 import movieapp.webmovie.enums.Role;
+import movieapp.webmovie.security.CustomUserDetails;
 import movieapp.webmovie.security.JwtTokenUtil;
 import movieapp.webmovie.service.EmailService;
 import movieapp.webmovie.service.UserService;
@@ -44,7 +45,7 @@ public class AuthController {
         User user = new User();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setRole(Role.USER);
         userService.saveUser(user);
 
@@ -55,7 +56,8 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginDTO dto) {
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
-        User user = (User) auth.getPrincipal();
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+        User user = userDetails.getUser(); // Lấy lại entity User
         String token = jwtTokenUtil.generateToken(user);
         return ResponseEntity.ok(new AuthResponseDTO(token));
     }
@@ -84,25 +86,25 @@ public class AuthController {
         return ResponseEntity.ok("Đổi mật khẩu thành công");
     }
 
-    // ✅ Cập nhật thông tin cơ bản (không xử lý ảnh file)
     @PutMapping("/update-profile")
     public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileDTO dto, Authentication auth) {
-        User user = (User) auth.getPrincipal();
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+        User user = userDetails.getUser();
         user.setName(dto.getName());
         user.setPhone(dto.getPhone());
 
         if (dto.getAvatar() != null) {
-            user.setAvatar(dto.getAvatar()); // chỉ dùng nếu FE gửi chuỗi avatar
+            user.setAvatar(dto.getAvatar());
         }
 
         userService.saveUser(user);
         return ResponseEntity.ok("Cập nhật thông tin thành công");
     }
 
-    // ✅ Gửi link avatar (Postman)
     @PutMapping("/update-avatar-link")
     public ResponseEntity<?> updateAvatarLink(@RequestBody Map<String, String> body, Authentication auth) {
-        User user = (User) auth.getPrincipal();
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+        User user = userDetails.getUser();
         String avatarUrl = body.get("avatar");
 
         if (avatarUrl == null || avatarUrl.isBlank()) {
@@ -113,10 +115,10 @@ public class AuthController {
         return ResponseEntity.ok("Cập nhật avatar thành công (dùng link)");
     }
 
-    // ✅ Upload ảnh thực tế từ file (FE dùng multipart/form-data)
     @PutMapping("/upload-avatar")
     public ResponseEntity<?> uploadAvatar(@RequestParam("avatar") MultipartFile avatarFile, Authentication auth) {
-        User user = (User) auth.getPrincipal();
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+        User user = userDetails.getUser();
         try {
             userService.updateAvatarByFile(user, avatarFile);
             return ResponseEntity.ok("Upload ảnh thành công");

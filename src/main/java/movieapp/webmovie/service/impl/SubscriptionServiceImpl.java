@@ -1,81 +1,110 @@
 package movieapp.webmovie.service.impl;
 
-import movieapp.webmovie.entity.*;
-import movieapp.webmovie.enums.PaymentStatus;
-import movieapp.webmovie.enums.PaymentType;
-import movieapp.webmovie.repository.*;
+import movieapp.webmovie.dto.SubscriptionRequest;
+import movieapp.webmovie.entity.Payment;
+import movieapp.webmovie.entity.Subscription;
+import movieapp.webmovie.repository.PlanRepository;
+import movieapp.webmovie.repository.SubscriptionRepository;
 import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Autowired
+    private SubscriptionRepository subscriptionRepo;
+
+    @Autowired
     private PlanRepository planRepo;
 
-    @Autowired
-    private PaymentRepository paymentRepo;
-
-    @Autowired
-    private SubscriptionRepository subRepo;
-
     @Override
-    public String subscribe(movieapp.webmovie.dto.SubscriptionRequest request) {
-        Plan plan = planRepo.findById(request.getPlanId())
-                .orElseThrow(() -> new RuntimeException("Plan not found"));
-
-        Payment payment = new Payment();
-        payment.setUserId(request.getUserId());
-        payment.setAmount(plan.getPrice());
-        payment.setPaymentMethod(request.getPaymentMethod());
-        payment.setTransactionRef(UUID.randomUUID().toString());
-        payment.setPaymentStatus(PaymentStatus.PENDING);
-        payment.setPaymentType(PaymentType.subscription);
-        paymentRepo.save(payment);
-
-        Subscription sub = new Subscription();
-        sub.setUserId(request.getUserId());
-        sub.setPlanId(plan.getPlanId());
-        sub.setStartDate(LocalDateTime.now());
-        sub.setEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
-        sub.setIsActive(true);
-        sub.setPaymentId(payment.getPaymentId());
-        subRepo.save(sub);
-
-        return "Đăng ký gói thành công. Mã giao dịch: " + payment.getTransactionRef();
+    public String subscribe(SubscriptionRequest request) {
+        // Logic nếu không dùng PayPal (có thể dùng sau này)
+        return "Chức năng này chưa hỗ trợ.";
     }
 
     @Override
-    public Optional<Subscription> getCurrentSubscription(Integer userId) {
-        return subRepo.findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+    public Map<String, Object> getCurrentSubscription(Long userId) {
+        Optional<Subscription> optionalSub = subscriptionRepo
+                .findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+
+        if (optionalSub.isPresent()) {
+            Subscription sub = optionalSub.get();
+
+            long daysLeft = ChronoUnit.DAYS.between(LocalDateTime.now(), sub.getEndDate());
+            if (daysLeft < 0)
+                daysLeft = 0;
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("planId", sub.getPlanId());
+            result.put("startDate", sub.getStartDate());
+            result.put("endDate", sub.getEndDate());
+            result.put("daysLeft", daysLeft);
+            result.put("isActive", sub.getIsActive());
+
+            return result;
+        } else {
+            throw new RuntimeException("Không tìm thấy gói đăng ký đang hoạt động.");
+        }
     }
 
-    // ✅ Gọi sau khi thanh toán PayPal thành công
     @Override
     public Subscription createSubscriptionFromPayment(Payment payment) {
-        // Xác minh payment có đầy đủ thông tin
-        if (payment == null || payment.getUserId() == null || payment.getAmount() == null) {
-            throw new IllegalArgumentException("Thông tin giao dịch không hợp lệ");
+        Long userId = payment.getUserId();
+        Long planId = payment.getPlanId();
+
+        LocalDateTime now = LocalDateTime.now();
+        int duration = planRepo.findById(planId)
+                .map(p -> p.getDurationDays())
+                .orElse(30); // default 30 ngày nếu không tìm thấy gói
+
+        Subscription sub = new Subscription();
+        sub.setUserId(userId);
+        sub.setPlanId(planId);
+        sub.setStartDate(now);
+        sub.setEndDate(now.plusDays(duration));
+        sub.setIsActive(true);
+        sub.setPaymentId(payment.getPaymentId());
+
+        return subscriptionRepo.save(sub);
+    }
+    // movieapp.webmovie.service.impl.SubscriptionServiceImpl.java
+
+    @Override
+    public boolean cancelSubscription(Long userId) {
+        Optional<Subscription> currentSubOpt = subscriptionRepo
+                .findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+        if (currentSubOpt.isPresent()) {
+            Subscription sub = currentSubOpt.get();
+            // ❌ Không hủy ngay, chỉ đánh dấu không gia hạn tiếp
+            sub.setIsCancelled(true);
+            sub.setAutoRenew(false);
+            subscriptionRepo.save(sub);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean cancelAutoRenew(Long userId) {
+        Optional<Subscription> opt = subscriptionRepo
+                .findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+
+        if (opt.isPresent()) {
+            Subscription sub = opt.get();
+            sub.setAutoRenew(false); // Tắt gia hạn
+            subscriptionRepo.save(sub);
+            return true;
         }
 
-        Plan plan = planRepo.findAll().stream()
-                .filter(p -> p.getPrice().compareTo(payment.getAmount()) == 0)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy gói phù hợp với số tiền đã thanh toán"));
-
-        Subscription subscription = new Subscription();
-        subscription.setUserId(payment.getUserId());
-        subscription.setPlanId(plan.getPlanId());
-        subscription.setStartDate(LocalDateTime.now());
-        subscription.setEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
-        subscription.setIsActive(true);
-        subscription.setPaymentId(payment.getPaymentId());
-
-        return subRepo.save(subscription);
+        return false;
     }
+
 }
