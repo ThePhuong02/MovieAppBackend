@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 
 @Component
 public class JwtTokenUtil {
@@ -35,6 +36,7 @@ public class JwtTokenUtil {
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("role", "ROLE_" + user.getRole().name())
+                .claim("authorities", List.of("ROLE_" + user.getRole().name())) // ✅ thêm authorities
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 86400000))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -59,7 +61,6 @@ public class JwtTokenUtil {
         }
     }
 
-    // ✅ Hàm thêm để lấy User từ request
     public User getUserFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
 

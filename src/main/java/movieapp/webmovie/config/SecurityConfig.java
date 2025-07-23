@@ -40,12 +40,17 @@ public class SecurityConfig {
                                 "/cancel",
                                 "/uploads/**",
                                 "/api/paypal/capture-order",
-                                "/api/paypal/paypal-success",
-                                "/notifications/**")
+                                "/api/paypal/paypal-success")
                         .permitAll()
 
-                        // ✅ Thêm dòng này để cho phép user truy cập endpoints liên quan đến thông báo
-                        .requestMatchers("/notifications/**").hasAnyRole("USER", "ADMIN", "STAFF")
+                        // ✅ Gửi thông báo chỉ cho ADMIN
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/notifications/**").hasRole("ADMIN")
+
+                        // ✅ Xem và cập nhật thông báo cho USER, ADMIN, STAFF
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/notifications/**")
+                        .hasAnyRole("USER", "ADMIN", "STAFF")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/notifications/**")
+                        .hasAnyRole("USER", "ADMIN", "STAFF")
 
                         // ✅ Cho phép xem gói
                         .requestMatchers("/api/plans/**").hasAnyRole("USER", "ADMIN")
@@ -79,7 +84,7 @@ public class SecurityConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:3000") // hoặc frontend của bạn
+                        .allowedOrigins("http://localhost:3000")
                         .allowedMethods("*")
                         .allowedHeaders("*")
                         .allowCredentials(true);
