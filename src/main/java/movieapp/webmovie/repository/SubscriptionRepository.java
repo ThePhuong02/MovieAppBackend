@@ -16,4 +16,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     List<Subscription> findAllByUserIdOrderByStartDateDesc(Long userId);
 
+    List<Subscription> findAllByIsActiveTrue();
+
 }

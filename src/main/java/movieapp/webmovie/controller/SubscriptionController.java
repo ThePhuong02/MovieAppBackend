@@ -1,7 +1,7 @@
 package movieapp.webmovie.controller;
 
-import movieapp.webmovie.repository.SubscriptionRepository; // ⬅ Thêm import
 import movieapp.webmovie.dto.SubscriptionRequest;
+import movieapp.webmovie.repository.SubscriptionRepository;
 import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ public class SubscriptionController {
     private SubscriptionService subscriptionService;
 
     @Autowired
-    private SubscriptionRepository subscriptionRepo; // ⬅ Thêm dòng này để inject repository
+    private SubscriptionRepository subscriptionRepo;
 
     @PostMapping
     public ResponseEntity<String> subscribe(@RequestBody SubscriptionRequest request) {

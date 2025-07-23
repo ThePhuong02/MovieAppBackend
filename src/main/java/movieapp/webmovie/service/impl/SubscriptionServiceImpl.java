@@ -7,13 +7,12 @@ import movieapp.webmovie.repository.PlanRepository;
 import movieapp.webmovie.repository.SubscriptionRepository;
 import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class SubscriptionServiceImpl implements SubscriptionService {
@@ -26,21 +25,17 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Override
     public String subscribe(SubscriptionRequest request) {
-        // Logic nếu không dùng PayPal (có thể dùng sau này)
         return "Chức năng này chưa hỗ trợ.";
     }
 
     @Override
     public Map<String, Object> getCurrentSubscription(Long userId) {
-        Optional<Subscription> optionalSub = subscriptionRepo
-                .findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+        Optional<Subscription> optionalSub = subscriptionRepo.findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
 
         if (optionalSub.isPresent()) {
             Subscription sub = optionalSub.get();
-
             long daysLeft = ChronoUnit.DAYS.between(LocalDateTime.now(), sub.getEndDate());
-            if (daysLeft < 0)
-                daysLeft = 0;
+            daysLeft = Math.max(0, daysLeft);
 
             Map<String, Object> result = new HashMap<>();
             result.put("planId", sub.getPlanId());
@@ -48,11 +43,13 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             result.put("endDate", sub.getEndDate());
             result.put("daysLeft", daysLeft);
             result.put("isActive", sub.getIsActive());
+            result.put("isCancelled", sub.getIsCancelled());
+            result.put("autoRenew", sub.getAutoRenew());
 
             return result;
-        } else {
-            throw new RuntimeException("Không tìm thấy gói đăng ký đang hoạt động.");
         }
+
+        throw new RuntimeException("Không tìm thấy gói đăng ký đang hoạt động.");
     }
 
     @Override
@@ -61,9 +58,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Long planId = payment.getPlanId();
 
         LocalDateTime now = LocalDateTime.now();
-        int duration = planRepo.findById(planId)
-                .map(p -> p.getDurationDays())
-                .orElse(30); // default 30 ngày nếu không tìm thấy gói
+        int duration = planRepo.findById(planId).map(p -> p.getDurationDays()).orElse(30);
 
         Subscription sub = new Subscription();
         sub.setUserId(userId);
@@ -71,35 +66,36 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         sub.setStartDate(now);
         sub.setEndDate(now.plusDays(duration));
         sub.setIsActive(true);
+        sub.setAutoRenew(true);
+        sub.setIsCancelled(false);
         sub.setPaymentId(payment.getPaymentId());
 
         return subscriptionRepo.save(sub);
     }
-    // movieapp.webmovie.service.impl.SubscriptionServiceImpl.java
 
     @Override
     public boolean cancelSubscription(Long userId) {
-        Optional<Subscription> currentSubOpt = subscriptionRepo
-                .findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
-        if (currentSubOpt.isPresent()) {
-            Subscription sub = currentSubOpt.get();
-            // ❌ Không hủy ngay, chỉ đánh dấu không gia hạn tiếp
+        Optional<Subscription> opt = subscriptionRepo.findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+
+        if (opt.isPresent()) {
+            Subscription sub = opt.get();
             sub.setIsCancelled(true);
             sub.setAutoRenew(false);
             subscriptionRepo.save(sub);
             return true;
         }
+
         return false;
     }
 
     @Override
     public boolean cancelAutoRenew(Long userId) {
-        Optional<Subscription> opt = subscriptionRepo
-                .findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+        Optional<Subscription> opt = subscriptionRepo.findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
 
         if (opt.isPresent()) {
             Subscription sub = opt.get();
-            sub.setAutoRenew(false); // Tắt gia hạn
+            sub.setAutoRenew(false);
+            sub.setIsCancelled(true);
             subscriptionRepo.save(sub);
             return true;
         }
@@ -107,4 +103,14 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         return false;
     }
 
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void updateExpiredSubscriptions() {
+        List<Subscription> activeSubs = subscriptionRepo.findAllByIsActiveTrue();
+        for (Subscription sub : activeSubs) {
+            if (sub.getEndDate().isBefore(LocalDateTime.now())) {
+                sub.setIsActive(false);
+                subscriptionRepo.save(sub);
+            }
+        }
+    }
 }
