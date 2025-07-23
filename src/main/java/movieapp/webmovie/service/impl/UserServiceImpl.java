@@ -29,10 +29,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User saveUser(User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
+        // ⚠️ Nếu user đã có email thì kiểm tra tồn tại (chỉ khi đăng ký mới)
+        if (user.getUserID() == null && userRepository.existsByEmail(user.getEmail())) {
             throw new IllegalArgumentException("Email đã tồn tại");
         }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        // ✅ Mã hóa mật khẩu nếu là mật khẩu chưa mã hóa
+        if (!user.getPassword().startsWith("$2a$")) { // chỉ mã hóa nếu chưa mã hóa bằng BCrypt
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+
+        // ✅ Gán role mặc định nếu chưa có
+        if (user.getRole() == null) {
+            user.setRole(Role.USER);
+        }
+
         return userRepository.save(user);
     }
 

@@ -1,12 +1,13 @@
 package movieapp.webmovie.controller;
 
 import movieapp.webmovie.dto.*;
-import movieapp.webmovie.entity.User;
+import movieapp.webmovie.entity.*;
 import movieapp.webmovie.enums.Role;
 import movieapp.webmovie.security.CustomUserDetails;
 import movieapp.webmovie.security.JwtTokenUtil;
 import movieapp.webmovie.service.EmailService;
 import movieapp.webmovie.service.UserService;
+import movieapp.webmovie.service.UserDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -15,6 +16,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
 import java.util.Map;
@@ -35,6 +38,8 @@ public class AuthController {
     private JwtTokenUtil jwtTokenUtil;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private UserDeviceService userDeviceService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterDTO dto) {
@@ -53,12 +58,19 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginDTO dto) {
+    public ResponseEntity<?> login(@RequestBody LoginDTO dto,
+            HttpServletRequest request) {
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
         CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-        User user = userDetails.getUser(); // Lấy lại entity User
+        User user = userDetails.getUser();
         String token = jwtTokenUtil.generateToken(user);
+
+        // 👉 Lưu thông tin thiết bị khi đăng nhập
+        String ipAddress = request.getRemoteAddr();
+        String deviceName = request.getHeader("User-Agent");
+        userDeviceService.saveLoginSession(user, token, ipAddress, deviceName);
+
         return ResponseEntity.ok(new AuthResponseDTO(token));
     }
 
@@ -125,5 +137,15 @@ public class AuthController {
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body("Lỗi khi upload ảnh");
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest().body("Token không hợp lệ");
+        }
+        String token = authHeader.replace("Bearer ", "");
+        userDeviceService.revokeToken(token);
+        return ResponseEntity.ok("Đăng xuất thành công");
     }
 }
