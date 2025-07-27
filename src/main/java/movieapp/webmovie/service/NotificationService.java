@@ -1,33 +1,14 @@
 package movieapp.webmovie.service;
 
-import movieapp.webmovie.entity.*;
-import movieapp.webmovie.repository.*;
-import movieapp.webmovie.dto.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import movieapp.webmovie.dto.NotificationRequest;
+import movieapp.webmovie.entity.Notification;
 
 import java.util.List;
 
-@Service
-public class NotificationService {
-    @Autowired
-    private NotificationRepository notificationRepo;
+public interface NotificationService {
+    Notification send(NotificationRequest req);
 
-    public Notification send(NotificationRequest req) {
-        return notificationRepo.save(Notification.builder()
-                .userId(req.getUserId())
-                .title(req.getTitle())
-                .message(req.getMessage())
-                .build());
-    }
+    List<Notification> getUserNotifications(Long userId);
 
-    public List<Notification> getUserNotifications(Long userId) {
-        return notificationRepo.findByUserIdOrderByCreatedAtDesc(userId);
-    }
-
-    public void markAsRead(Long notificationId) {
-        Notification n = notificationRepo.findById(notificationId).orElseThrow();
-        n.setIsRead(true);
-        notificationRepo.save(n);
-    }
+    void markAsRead(Long notificationId);
 }

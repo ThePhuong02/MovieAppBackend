@@ -2,6 +2,8 @@ package movieapp.webmovie.controller;
 
 import java.util.List;
 
+import movieapp.webmovie.dto.MovieDTO;
+import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,13 +19,14 @@ public class GenreController {
     @Autowired
     private GenreService genreService;
 
-    // ✅ Cho phép tất cả user (kể cả chưa login) xem thể loại
+    @Autowired
+    private MovieService movieService;
+
     @GetMapping
     public List<Genre> getAllGenres() {
         return genreService.getAllGenres();
     }
 
-    // ✅ Cho phép xem chi tiết thể loại
     @GetMapping("/{id}")
     public ResponseEntity<?> getGenreById(@PathVariable Long id) {
         Genre genre = genreService.getGenreById(id);
@@ -33,7 +36,13 @@ public class GenreController {
         return ResponseEntity.ok(genre);
     }
 
-    // ✅ Chỉ ADMIN được thêm thể loại
+    // ✅ Lọc phim theo thể loại (ai cũng gọi được)
+    @GetMapping("/{id}/movies")
+    public ResponseEntity<List<MovieDTO>> getMoviesByGenre(@PathVariable Long id) {
+        List<MovieDTO> movies = movieService.getMoviesByGenreId(id);
+        return ResponseEntity.ok(movies);
+    }
+
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> addGenre(@RequestBody Genre genre) {
@@ -48,7 +57,6 @@ public class GenreController {
         return ResponseEntity.ok(genre);
     }
 
-    // ✅ Chỉ ADMIN được sửa
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateGenre(@PathVariable Long id, @RequestBody Genre genre) {
@@ -63,7 +71,6 @@ public class GenreController {
         }
     }
 
-    // ✅ Chỉ ADMIN được xóa
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteGenre(@PathVariable Long id) {

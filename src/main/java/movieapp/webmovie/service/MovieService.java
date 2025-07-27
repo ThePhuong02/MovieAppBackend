@@ -17,7 +17,6 @@ public interface MovieService {
 
     void deleteMovie(Long id);
 
-    // Thể loại
     void assignGenresToMovie(Long movieId, List<Long> genreIds);
 
     void addGenreToMovie(Long movieId, Long genreId);
@@ -26,6 +25,8 @@ public interface MovieService {
 
     List<Genre> getGenresByMovie(Long movieId);
 
-    // 👇 THÊM MỚI
     MovieDTO getMoviePlayInfo(Long movieId, Long userId);
+
+    // ✅ mới
+    List<MovieDTO> getMoviesByGenreId(Long genreId);
 }

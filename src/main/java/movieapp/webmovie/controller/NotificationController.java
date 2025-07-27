@@ -1,8 +1,8 @@
 package movieapp.webmovie.controller;
 
-import movieapp.webmovie.entity.*;
-import movieapp.webmovie.dto.*;
-import movieapp.webmovie.service.*;
+import movieapp.webmovie.dto.NotificationRequest;
+import movieapp.webmovie.entity.Notification;
+import movieapp.webmovie.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,6 +11,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/notifications")
 public class NotificationController {
+
     @Autowired
     private NotificationService service;
 
