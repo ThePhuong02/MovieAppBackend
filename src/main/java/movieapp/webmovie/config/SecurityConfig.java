@@ -5,17 +5,22 @@ import movieapp.webmovie.security.JwtTokenUtil;
 import movieapp.webmovie.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -29,6 +34,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
         http
+                .cors(Customizer.withDefaults()) // ✅ Bật CORS trong Spring Security
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
                         // ✅ Các route public
@@ -44,19 +50,16 @@ public class SecurityConfig {
                         .permitAll()
 
                         // ✅ Gửi thông báo chỉ cho ADMIN
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/notifications/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/notifications/**").hasRole("ADMIN")
 
                         // ✅ Xem và cập nhật thông báo cho USER, ADMIN, STAFF
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/notifications/**")
-                        .hasAnyRole("USER", "ADMIN", "STAFF")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/notifications/**")
-                        .hasAnyRole("USER", "ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/notifications/**").hasAnyRole("USER", "ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.PUT, "/notifications/**").hasAnyRole("USER", "ADMIN", "STAFF")
 
                         // ✅ Cho phép xem gói
                         .requestMatchers("/api/plans/**").hasAnyRole("USER", "ADMIN")
 
                         .requestMatchers("/api/payments/me").hasAnyRole("USER", "ADMIN")
-
                         .requestMatchers("/api/payments/user/**", "/api/payments/all").hasRole("ADMIN")
 
                         // ✅ Các route còn lại bắt buộc phải đăng nhập
@@ -78,17 +81,18 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    // ✅ Cấu hình CORS rõ ràng và đúng cách
     @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:3000")
-                        .allowedMethods("*")
-                        .allowedHeaders("*")
-                        .allowCredentials(true);
-            }
-        };
+    public CorsFilter corsFilter() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+
+        return new CorsFilter(source);
     }
 }

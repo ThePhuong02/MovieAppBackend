@@ -139,6 +139,12 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication auth) {
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+        return ResponseEntity.ok(userDetails.getUser());
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
