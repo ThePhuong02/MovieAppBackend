@@ -10,6 +10,6 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Cho phép truy cập ảnh tĩnh ở /uploads/**
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:uploads/");
+                .addResourceLocations("file:./uploads/"); // ./ để relative với root project
     }
 }

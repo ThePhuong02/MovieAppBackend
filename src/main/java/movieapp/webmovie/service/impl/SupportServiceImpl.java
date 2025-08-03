@@ -17,7 +17,8 @@ public class SupportServiceImpl implements SupportService {
 
     private final SupportRepository supportRepository;
     private final UserRepository userRepository;
-    private final NotificationService notificationService; // ✅ Thêm
+    private final NotificationService notificationService;
+    private final EmailServiceImpl emailService; // Dùng EmailServiceImpl để gửi email reply
 
     @Override
     public void sendSupport(SupportRequest request) {
@@ -50,12 +51,18 @@ public class SupportServiceImpl implements SupportService {
         support.setRespondedAt(LocalDateTime.now());
         supportRepository.save(support);
 
-        // ✅ Gửi thông báo cho user
+        // Gửi thông báo trong hệ thống
         notificationService.send(NotificationRequest.builder()
                 .userId(support.getUser().getUserID())
                 .title("Phản hồi hỗ trợ")
                 .message("Yêu cầu hỗ trợ của bạn đã được phản hồi.")
                 .build());
+
+        // ✅ Gửi email phản hồi cho user
+        emailService.sendSupportReplyEmail(
+                support.getEmail(),
+                support.getFirstName(),
+                request.getResponse());
     }
 
     @Override
