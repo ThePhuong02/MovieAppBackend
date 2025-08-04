@@ -34,7 +34,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
         http
-                .cors(Customizer.withDefaults()) // ✅ Bật CORS trong Spring Security
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
                         // ✅ Các route public
@@ -48,6 +48,10 @@ public class SecurityConfig {
                                 "/api/paypal/capture-order",
                                 "/api/paypal/paypal-success")
                         .permitAll()
+
+                        // ✅ API upload avatar cho người dùng đã đăng nhập
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/upload-avatar")
+                        .hasAnyRole("USER", "ADMIN", "STAFF")
 
                         // ✅ Gửi thông báo chỉ cho ADMIN
                         .requestMatchers(HttpMethod.POST, "/notifications/**").hasRole("ADMIN")
@@ -81,7 +85,6 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    // ✅ Cấu hình CORS rõ ràng và đúng cách
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();

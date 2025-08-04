@@ -6,6 +6,7 @@ import movieapp.webmovie.enums.Role;
 import movieapp.webmovie.repository.UserRepository;
 import movieapp.webmovie.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,25 +26,23 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    // Lấy host từ application.properties
+    @Value("${app.base-url:http://localhost:8080}")
+    private String baseUrl;
+
     private final String uploadDir = "uploads/avatars/";
 
     @Override
     public User saveUser(User user) {
-        // ⚠️ Nếu user đã có email thì kiểm tra tồn tại (chỉ khi đăng ký mới)
         if (user.getUserID() == null && userRepository.existsByEmail(user.getEmail())) {
             throw new IllegalArgumentException("Email đã tồn tại");
         }
-
-        // ✅ Mã hóa mật khẩu nếu là mật khẩu chưa mã hóa
-        if (!user.getPassword().startsWith("$2a$")) { // chỉ mã hóa nếu chưa mã hóa bằng BCrypt
+        if (!user.getPassword().startsWith("$2a$")) {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
-
-        // ✅ Gán role mặc định nếu chưa có
         if (user.getRole() == null) {
             user.setRole(Role.USER);
         }
-
         return userRepository.save(user);
     }
 
@@ -80,7 +79,7 @@ public class UserServiceImpl implements UserService {
                         u.getName(),
                         u.getEmail(),
                         u.getPhone(),
-                        u.getAvatar(),
+                        getFullAvatarUrl(u.getAvatar()),
                         u.getRole().name()))
                 .toList();
     }
@@ -107,17 +106,37 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void updateAvatarByFile(User user, MultipartFile avatarFile) throws IOException {
+        // Xóa ảnh cũ nếu tồn tại
+        if (user.getAvatar() != null && user.getAvatar().startsWith("/" + uploadDir)) {
+            Path oldPath = Paths.get(user.getAvatar().substring(1));
+            try {
+                Files.deleteIfExists(oldPath);
+            } catch (IOException e) {
+                System.err.println("Không thể xóa avatar cũ: " + e.getMessage());
+            }
+        }
+
+        // Lưu ảnh mới
         String fileName = UUID.randomUUID() + "_" + avatarFile.getOriginalFilename();
         Path uploadPath = Paths.get(uploadDir);
-
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
         Path filePath = uploadPath.resolve(fileName);
-        Files.write(filePath, avatarFile.getBytes());
+        Files.copy(avatarFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-        user.setAvatar("/" + uploadDir + fileName); // để truy cập qua URL tĩnh
+        // Lưu đường dẫn tương đối vào DB
+        user.setAvatar("/" + uploadDir + fileName);
         userRepository.save(user);
+    }
+
+    // Trả về full URL để hiển thị ngoài frontend
+    private String getFullAvatarUrl(String avatarPath) {
+        if (avatarPath == null || avatarPath.isBlank())
+            return null;
+        if (avatarPath.startsWith("http"))
+            return avatarPath;
+        return baseUrl + avatarPath;
     }
 }
