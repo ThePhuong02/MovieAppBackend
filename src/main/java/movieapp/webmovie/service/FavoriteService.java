@@ -2,7 +2,6 @@ package movieapp.webmovie.service;
 
 import movieapp.webmovie.entity.*;
 import movieapp.webmovie.repository.*;
-import movieapp.webmovie.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

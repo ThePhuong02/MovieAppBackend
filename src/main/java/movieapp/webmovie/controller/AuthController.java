@@ -20,7 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 
 @RestController
@@ -90,11 +89,11 @@ public class AuthController {
 
         Map<String, Object> response = Map.of(
                 "userID", user.getUserID(),
-                "name", user.getName(),
+                "name", user.getName() != null ? user.getName() : "",
                 "email", user.getEmail(),
-                "phone", user.getPhone(),
-                "avatar", avatarUrl,
-                "role", user.getRole());
+                "phone", user.getPhone() != null ? user.getPhone() : "",
+                "avatar", avatarUrl != null ? avatarUrl : "",
+                "role", user.getRole() != null ? user.getRole() : "");
 
         return ResponseEntity.ok(response);
     }

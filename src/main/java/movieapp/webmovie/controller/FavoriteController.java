@@ -1,7 +1,6 @@
 package movieapp.webmovie.controller;
 
 import movieapp.webmovie.entity.*;
-import movieapp.webmovie.dto.*;
 import movieapp.webmovie.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
