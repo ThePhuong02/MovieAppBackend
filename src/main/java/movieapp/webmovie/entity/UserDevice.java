@@ -16,7 +16,7 @@ public class UserDevice {
     private Long deviceID;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "UserID")
+    @JoinColumn(name = "UserID", referencedColumnName = "userID")
     private User user;
 
     private String deviceName;

@@ -7,7 +7,6 @@ import movieapp.webmovie.enums.PaymentType;
 import movieapp.webmovie.repository.PaymentRepository;
 import movieapp.webmovie.repository.PlanRepository;
 import movieapp.webmovie.service.PayPalService;
-import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,9 +21,6 @@ public class PayPalController {
 
     @Autowired
     private PayPalService payPalService;
-
-    @Autowired
-    private SubscriptionService subscriptionService;
 
     @Autowired
     private PaymentRepository paymentRepo;
@@ -88,9 +84,7 @@ public class PayPalController {
                 payment.setPaymentStatus(PaymentStatus.SUCCESS);
                 paymentRepo.save(payment);
 
-                // ✅ Tạo gói đăng ký từ payment
-                Subscription createdSub = subscriptionService.createSubscriptionFromPayment(payment);
-                return "✅ Thanh toán & kích hoạt gói thành công. Subscription ID: " + createdSub.getSubscriptionId();
+                return "Thanh toán & kích hoạt gói thành công ";
             } else {
                 return "⚠ Không tìm thấy giao dịch với mã: " + transactionRef;
             }
