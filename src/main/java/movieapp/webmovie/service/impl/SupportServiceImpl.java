@@ -54,8 +54,8 @@ public class SupportServiceImpl implements SupportService {
         // Gửi thông báo trong hệ thống
         notificationService.send(NotificationRequest.builder()
                 .userId(support.getUser().getUserID())
-                .title("Phản hồi hỗ trợ")
-                .message("Yêu cầu hỗ trợ của bạn đã được phản hồi.")
+                .title("Reply Support")
+                .message("Your support request has been replied.")
                 .build());
 
         // ✅ Gửi email phản hồi cho user
