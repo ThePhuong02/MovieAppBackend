@@ -42,7 +42,7 @@ public class PlanController {
         // Static payload to match FE contract
         List<PricingPlanDTO> monthly = Arrays.asList(
                 PricingPlanDTO.builder()
-                        .id("free-monthly")
+                        .id("free")
                         .title("Free Plan")
                         .description(
                                 "Enjoy an extensive library of movies and shows, featuring a range of content, including recently released titles.")

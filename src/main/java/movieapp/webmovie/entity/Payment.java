@@ -51,6 +51,6 @@ public class Payment {
     private Long planId;
 
     @Column(name = "PricingId")
-    private String pricingId; // e.g., premium-monthly, premium-yearly, free-monthly
+    private String pricingId;
 
 }

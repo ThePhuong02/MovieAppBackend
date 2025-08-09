@@ -94,7 +94,7 @@ public class PaymentServiceImpl implements PaymentService {
         String period = null;
         if (p.getPricingId() != null) {
             switch (p.getPricingId()) {
-                case "free-monthly":
+                case "free":
                     title = "Free Plan";
                     break;
                 case "free-yearly":

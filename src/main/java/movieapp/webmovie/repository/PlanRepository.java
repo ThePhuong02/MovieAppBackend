@@ -9,4 +9,6 @@ public interface PlanRepository extends JpaRepository<Plan, Long> {
     // có thể mở rộng: List<Plan> findByGrantsPremiumAccessTrue();
 
     Optional<Plan> findByNameAndDurationDays(String name, Integer durationDays);
+
+    Optional<Plan> findByName(String name);
 }

@@ -53,12 +53,11 @@ public class PayPalController {
         if (request.getPricingId() != null) {
             String pricingId = request.getPricingId();
             switch (pricingId) {
-                case "free-monthly":
-                case "free-yearly":
+                case "free":
                     amount = BigDecimal.ZERO;
-                    // cố gắng map sang Plan DB nếu có
+                    // Gói free: không phân biệt theo tháng/năm, map 1 plan duy nhất nếu có
                     resolvedPlanId = planRepo
-                            .findByNameAndDurationDays("Free Plan", pricingId.endsWith("yearly") ? 365 : 30)
+                            .findByName("Free Plan")
                             .map(Plan::getPlanId)
                             .orElse(null);
                     break;
@@ -108,7 +107,7 @@ public class PayPalController {
             // Gói miễn phí: không cần thanh toán qua PayPal
             payment.setPaymentStatus(PaymentStatus.SUCCESS);
             paymentRepo.save(payment);
-            return "Gói miễn phí được kích hoạt thành công (không cần thanh toán).";
+            return "Gói miễn phí được kích hoạt thành công.";
         } else {
             payment.setPaymentStatus(PaymentStatus.PENDING);
             paymentRepo.save(payment);
