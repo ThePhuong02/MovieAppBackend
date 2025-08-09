@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,20 +32,63 @@ public class PayPalController {
     // ✅ 1. Tạo đơn hàng PayPal
     @PostMapping("/create-order")
     public String createOrder(@RequestBody SubscriptionRequest request) throws IOException {
-        // ✅ Kiểm tra null
-        if (request.getPlanId() == null || request.getUserId() == null || request.getPaymentMethod() == null) {
-            return "❌ Thiếu thông tin: planId, userId hoặc paymentMethod.";
+        // ✅ Kiểm tra đầu vào (chấp nhận pricingId mới hoặc planId cũ)
+        if (request.getUserId() == null || request.getPaymentMethod() == null) {
+            return "❌ Thiếu thông tin: userId hoặc paymentMethod.";
+        }
+        if (request.getPricingId() == null && request.getPlanId() == null) {
+            return "❌ Thiếu thông tin: pricingId (ưu tiên) hoặc planId.";
         }
 
-        // 🪵 Log request
         System.out.println("🔍 Nhận request create-order:");
-        System.out.println("PlanID: " + request.getPlanId());
-        System.out.println("UserID: " + request.getUserId());
-        System.out.println("Payment Method: " + request.getPaymentMethod());
+        System.out.println("pricingId: " + request.getPricingId());
+        System.out.println("planId: " + request.getPlanId());
+        System.out.println("userId: " + request.getUserId());
+        System.out.println("paymentMethod: " + request.getPaymentMethod());
 
-        // 🔍 Tìm plan theo ID
-        Plan plan = planRepo.findById(request.getPlanId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy gói với ID: " + request.getPlanId()));
+        BigDecimal amount;
+        Long resolvedPlanId = null;
+
+        // ✅ Nhánh mới: ưu tiên pricingId từ /api/plans/pricing
+        if (request.getPricingId() != null) {
+            String pricingId = request.getPricingId();
+            switch (pricingId) {
+                case "free-monthly":
+                case "free-yearly":
+                    amount = BigDecimal.ZERO;
+                    // cố gắng map sang Plan DB nếu có
+                    resolvedPlanId = planRepo
+                            .findByNameAndDurationDays("Free Plan", pricingId.endsWith("yearly") ? 365 : 30)
+                            .map(Plan::getPlanId)
+                            .orElse(null);
+                    break;
+                case "standard-monthly":
+                case "standard-yearly":
+                    return "❌ Gói Standard đang Coming Soon. Vui lòng chọn gói khác.";
+                case "premium-monthly":
+                    amount = new BigDecimal("20");
+                    resolvedPlanId = planRepo
+                            .findByNameAndDurationDays("Premium Plan", 30)
+                            .map(Plan::getPlanId)
+                            .orElse(null);
+                    break;
+                case "premium-yearly":
+                    amount = new BigDecimal("192");
+                    resolvedPlanId = planRepo
+                            .findByNameAndDurationDays("Premium Plan", 365)
+                            .map(Plan::getPlanId)
+                            .orElse(null);
+                    break;
+                default:
+                    return "❌ pricingId không hợp lệ.";
+            }
+        } else {
+            // 🔁 Backward compatible: dùng planId cũ
+            Plan plan = planRepo.findById(request.getPlanId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy gói với ID: " + request.getPlanId()));
+            amount = plan.getPrice();
+            resolvedPlanId = plan.getPlanId();
+        }
 
         // 👉 Tạo transactionRef duy nhất
         String transactionRef = UUID.randomUUID().toString();
@@ -52,18 +96,24 @@ public class PayPalController {
         // ✅ Tạo đối tượng Payment và lưu
         Payment payment = new Payment();
         payment.setUserId(request.getUserId());
-        payment.setAmount(plan.getPrice());
+        payment.setAmount(amount);
         payment.setPaymentMethod(request.getPaymentMethod());
         payment.setTransactionRef(transactionRef);
-        payment.setPaymentStatus(PaymentStatus.PENDING);
         payment.setPaymentType(PaymentType.subscription);
         payment.setPaidAt(LocalDateTime.now());
-        payment.setPlanId(request.getPlanId());
+        payment.setPlanId(resolvedPlanId);
+        payment.setPricingId(request.getPricingId());
 
-        paymentRepo.save(payment);
-
-        // ✅ Gửi đơn hàng đến PayPal
-        return payPalService.createOrder(plan.getPrice().toPlainString(), transactionRef);
+        if (amount.compareTo(BigDecimal.ZERO) == 0) {
+            // Gói miễn phí: không cần thanh toán qua PayPal
+            payment.setPaymentStatus(PaymentStatus.SUCCESS);
+            paymentRepo.save(payment);
+            return "Gói miễn phí được kích hoạt thành công (không cần thanh toán).";
+        } else {
+            payment.setPaymentStatus(PaymentStatus.PENDING);
+            paymentRepo.save(payment);
+            return payPalService.createOrder(amount.toPlainString(), transactionRef);
+        }
     }
 
     // ✅ 2. Capture đơn hàng PayPal sau khi thanh toán thành công

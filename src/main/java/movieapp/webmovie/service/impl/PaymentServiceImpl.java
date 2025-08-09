@@ -1,5 +1,6 @@
 package movieapp.webmovie.service.impl;
 
+import movieapp.webmovie.dto.PaymentHistoryDTO;
 import movieapp.webmovie.dto.WebhookRequest;
 import movieapp.webmovie.entity.Movie;
 import movieapp.webmovie.entity.Payment;
@@ -53,13 +54,19 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public List<Payment> getUserPayments(Long userId) {
-        return paymentRepository.findByUserId(userId);
+    public List<PaymentHistoryDTO> getUserPayments(Long userId) {
+        return paymentRepository.findByUserId(userId)
+                .stream()
+                .map(this::toHistoryDTO)
+                .toList();
     }
 
     @Override
-    public List<Payment> getAllPayments() {
-        return paymentRepository.findAll();
+    public List<PaymentHistoryDTO> getAllPayments() {
+        return paymentRepository.findAll()
+                .stream()
+                .map(this::toHistoryDTO)
+                .toList();
     }
 
     @Override
@@ -80,5 +87,52 @@ public class PaymentServiceImpl implements PaymentService {
 
     public Optional<Payment> findByTransactionRef(String ref) {
         return paymentRepository.findByTransactionRef(ref);
+    }
+
+    private PaymentHistoryDTO toHistoryDTO(Payment p) {
+        String title = null;
+        String period = null;
+        if (p.getPricingId() != null) {
+            switch (p.getPricingId()) {
+                case "free-monthly":
+                    title = "Free Plan";
+                    break;
+                case "free-yearly":
+                    title = "Free Plan";
+                    period = "/year";
+                    break;
+                case "standard-monthly":
+                    title = "Standard Plan";
+                    break;
+                case "standard-yearly":
+                    title = "Standard Plan";
+                    period = "/year";
+                    break;
+                case "premium-monthly":
+                    title = "Premium Plan";
+                    break;
+                case "premium-yearly":
+                    title = "Premium Plan";
+                    period = "/year";
+                    break;
+                default:
+                    title = null;
+            }
+        }
+
+        return PaymentHistoryDTO.builder()
+                .paymentId(p.getPaymentId())
+                .userId(p.getUserId())
+                .amount(p.getAmount())
+                .paymentMethod(p.getPaymentMethod())
+                .paidAt(p.getPaidAt())
+                .transactionRef(p.getTransactionRef())
+                .paymentStatus(p.getPaymentStatus())
+                .paymentType(p.getPaymentType())
+                .planId(p.getPlanId())
+                .pricingId(p.getPricingId())
+                .title(title)
+                .period(period)
+                .build();
     }
 }

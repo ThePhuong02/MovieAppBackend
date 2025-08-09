@@ -1,7 +1,7 @@
 package movieapp.webmovie.controller;
 
+import movieapp.webmovie.dto.PaymentHistoryDTO;
 import movieapp.webmovie.dto.WebhookRequest;
-import movieapp.webmovie.entity.Payment;
 import movieapp.webmovie.entity.User;
 import movieapp.webmovie.service.PaymentService;
 import movieapp.webmovie.service.UserService;
@@ -31,7 +31,7 @@ public class PaymentController {
 
     // ✅ Lấy danh sách thanh toán của người dùng hiện tại (user self-check)
     @GetMapping("/me")
-    public ResponseEntity<List<Payment>> getMyPayments(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<List<PaymentHistoryDTO>> getMyPayments(@AuthenticationPrincipal UserDetails userDetails) {
         String email = userDetails.getUsername(); // lấy email từ token
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
@@ -41,13 +41,13 @@ public class PaymentController {
 
     // ✅ Admin: xem thanh toán của 1 user
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Payment>> getPaymentsByUser(@PathVariable Long userId) {
+    public ResponseEntity<List<PaymentHistoryDTO>> getPaymentsByUser(@PathVariable Long userId) {
         return ResponseEntity.ok(paymentService.getUserPayments(userId));
     }
 
     // ✅ Admin: xem toàn bộ thanh toán
     @GetMapping("/all")
-    public ResponseEntity<List<Payment>> getAllPayments() {
+    public ResponseEntity<List<PaymentHistoryDTO>> getAllPayments() {
         return ResponseEntity.ok(paymentService.getAllPayments());
     }
 }

@@ -50,4 +50,7 @@ public class Payment {
     @Column(name = "PlanID")
     private Long planId;
 
+    @Column(name = "PricingId")
+    private String pricingId; // e.g., premium-monthly, premium-yearly, free-monthly
+
 }
