@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/cancel",
                                 "/uploads/**",
                                 "/api/paypal/capture-order",
-                                "/api/paypal/paypal-success")
+                                "/api/paypal/paypal-success",
+                                "/api/video/upload")
                         .permitAll()
 
                         // ✅ API upload avatar cho người dùng đã đăng nhập

@@ -19,15 +19,15 @@ public class MovieController {
     @Autowired
     private MovieService movieService;
 
-    // ✅ ADMIN & STAFF: Xem tất cả phim
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    // ✅ ADMIN, STAFF & USER: Xem tất cả phim
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'USER')")
     @GetMapping
     public List<MovieDTO> getAllMovies() {
         return movieService.getAllMovies();
     }
 
-    // ✅ ADMIN & STAFF: Xem chi tiết
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    // ✅ ADMIN, STAFF & USER: Xem chi tiết phim
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'USER')")
     @GetMapping("/{id}")
     public MovieDTO getMovieById(@PathVariable Long id) {
         return movieService.getMovieById(id);
@@ -56,11 +56,12 @@ public class MovieController {
         return ResponseEntity.ok("Deleted movie with id: " + id);
     }
 
-    // ✅ USER: Xem phim (Play)
+    // ✅ ADMIN, STAFF & USER: Xem phim (Play)
     @PreAuthorize("hasAnyRole('USER','ADMIN','STAFF')")
     @GetMapping("/{id}/play")
     public ResponseEntity<?> playMovie(@PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(movieService.getMoviePlayInfo(id, userDetails.getUser().getUserID()));
+        return ResponseEntity.ok(
+                movieService.getMoviePlayInfo(id, userDetails.getUser().getUserID()));
     }
 }

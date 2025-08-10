@@ -12,37 +12,42 @@ import movieapp.webmovie.service.EpisodeService;
 
 @RestController
 @RequestMapping("/api/episodes")
-@PreAuthorize("hasRole('ADMIN')")
 public class EpisodeController {
 
     @Autowired
     private EpisodeService service;
 
+    @PreAuthorize("hasAnyRole('USER','ADMIN','STAFF')")
     @GetMapping
     public List<Episode> all() {
         return service.getAll();
     }
 
+    @PreAuthorize("hasAnyRole('USER','ADMIN','STAFF')")
     @GetMapping("/{id}")
     public Episode getOne(@PathVariable Long id) {
         return service.getById(id);
     }
 
+    @PreAuthorize("hasAnyRole('USER','ADMIN','STAFF')")
     @GetMapping("/series/{seriesId}")
     public List<Episode> getBySeries(@PathVariable Long seriesId) {
         return service.getBySeriesId(seriesId);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Episode create(@RequestBody EpisodeDTO dto) {
         return service.create(dto);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Episode update(@PathVariable Long id, @RequestBody EpisodeDTO dto) {
         return service.update(id, dto);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         service.delete(id);
