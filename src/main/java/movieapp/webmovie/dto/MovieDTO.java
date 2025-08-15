@@ -2,6 +2,7 @@ package movieapp.webmovie.dto;
 
 import lombok.*;
 import movieapp.webmovie.enums.AccessLevel;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -17,4 +18,5 @@ public class MovieDTO {
     private AccessLevel accessLevel;
     private String trailerURL;
     private String videoURL;
+    private List<GenreDTO> genres; // Thêm field này
 }

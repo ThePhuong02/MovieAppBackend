@@ -1,5 +1,6 @@
 package movieapp.webmovie.service.impl;
 
+import movieapp.webmovie.dto.GenreDTO;
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
 import movieapp.webmovie.entity.Genre;
@@ -31,6 +32,7 @@ public class MovieServiceImpl implements MovieService {
         @Autowired
         private PlaybackRightRepository playbackRightRepository;
 
+        // Chuyển Movie -> MovieDTO (có genres)
         private MovieDTO convertToDTO(Movie movie) {
                 return MovieDTO.builder()
                                 .movieID(movie.getMovieID())
@@ -42,9 +44,13 @@ public class MovieServiceImpl implements MovieService {
                                 .accessLevel(movie.getAccessLevel())
                                 .trailerURL(movie.getTrailerURL())
                                 .videoURL(movie.getVideoURL())
+                                .genres(movie.getGenres().stream()
+                                                .map(g -> new GenreDTO(g.getGenreID(), g.getName()))
+                                                .collect(Collectors.toList()))
                                 .build();
         }
 
+        // Cập nhật entity từ DTO (không set genres ở đây)
         private void updateEntity(Movie movie, MovieRequestDTO dto) {
                 movie.setTitle(dto.getTitle());
                 movie.setDescription(dto.getDescription());
@@ -74,15 +80,34 @@ public class MovieServiceImpl implements MovieService {
         public MovieDTO createMovie(MovieRequestDTO dto) {
                 Movie movie = new Movie();
                 updateEntity(movie, dto);
-                return convertToDTO(movieRepository.save(movie));
+                movieRepository.save(movie);
+
+                // Nếu có genres thì gán luôn
+                if (dto.getGenreIds() != null && !dto.getGenreIds().isEmpty()) {
+                        List<Genre> genres = genreRepository.findAllById(dto.getGenreIds());
+                        movie.setGenres(new HashSet<>(genres));
+                        movieRepository.save(movie);
+                }
+
+                // Trả về movie kèm genres
+                return convertToDTO(movie);
         }
 
         @Override
         public MovieDTO updateMovie(Long id, MovieRequestDTO dto) {
                 Movie movie = movieRepository.findById(id)
                                 .orElseThrow(() -> new RuntimeException("Movie not found with id: " + id));
+
                 updateEntity(movie, dto);
-                return convertToDTO(movieRepository.save(movie));
+
+                // Nếu có genres thì update lại
+                if (dto.getGenreIds() != null) {
+                        List<Genre> genres = genreRepository.findAllById(dto.getGenreIds());
+                        movie.setGenres(new HashSet<>(genres));
+                }
+
+                movieRepository.save(movie);
+                return convertToDTO(movie);
         }
 
         @Override
@@ -134,7 +159,6 @@ public class MovieServiceImpl implements MovieService {
                 return new ArrayList<>(movie.getGenres());
         }
 
-        // ✅ MỚI: Kiểm tra quyền xem phim
         @Override
         public MovieDTO getMoviePlayInfo(Long movieId, Long userId) {
                 Movie movie = movieRepository.findById(movieId)
@@ -166,5 +190,4 @@ public class MovieServiceImpl implements MovieService {
                                 .map(this::convertToDTO)
                                 .collect(Collectors.toList());
         }
-
 }

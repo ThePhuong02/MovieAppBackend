@@ -2,6 +2,7 @@ package movieapp.webmovie.dto;
 
 import lombok.*;
 import movieapp.webmovie.enums.AccessLevel;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -15,5 +16,6 @@ public class MovieRequestDTO {
     private String poster;
     private AccessLevel accessLevel;
     private String trailerURL;
-    private String videoURL; // ⬅ Cloudinary video URL dán vào đây
+    private String videoURL;
+    private List<Long> genreIds; // Thêm field này
 }

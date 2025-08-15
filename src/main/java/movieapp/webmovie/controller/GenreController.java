@@ -1,8 +1,7 @@
 package movieapp.webmovie.controller;
 
 import java.util.List;
-
-import movieapp.webmovie.dto.MovieDTO;
+import movieapp.webmovie.dto.*;
 import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +22,12 @@ public class GenreController {
     private MovieService movieService;
 
     @GetMapping
-    public List<Genre> getAllGenres() {
-        return genreService.getAllGenres();
+    public ResponseEntity<List<GenreDTO>> getAllGenres() {
+        List<GenreDTO> genres = genreService.getAllGenres().stream()
+                .map(g -> new GenreDTO(g.getGenreID(), g.getName()))
+                .toList();
+
+        return ResponseEntity.ok(genres);
     }
 
     @GetMapping("/{id}")
