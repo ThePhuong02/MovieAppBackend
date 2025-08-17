@@ -32,7 +32,7 @@ public class MovieServiceImpl implements MovieService {
         @Autowired
         private PlaybackRightRepository playbackRightRepository;
 
-        // Chuyển Movie -> MovieDTO (có genres)
+        // Convert Movie -> MovieDTO
         private MovieDTO convertToDTO(Movie movie) {
                 return MovieDTO.builder()
                                 .movieID(movie.getMovieID())
@@ -50,7 +50,7 @@ public class MovieServiceImpl implements MovieService {
                                 .build();
         }
 
-        // Cập nhật entity từ DTO (không set genres ở đây)
+        // Cập nhật entity từ DTO
         private void updateEntity(Movie movie, MovieRequestDTO dto) {
                 movie.setTitle(dto.getTitle());
                 movie.setDescription(dto.getDescription());
@@ -60,6 +60,11 @@ public class MovieServiceImpl implements MovieService {
                 movie.setAccessLevel(dto.getAccessLevel());
                 movie.setTrailerURL(dto.getTrailerURL());
                 movie.setVideoURL(dto.getVideoURL());
+
+                if (dto.getGenreIds() != null) {
+                        List<Genre> genres = genreRepository.findAllById(dto.getGenreIds());
+                        movie.setGenres(new HashSet<>(genres));
+                }
         }
 
         @Override
@@ -81,15 +86,6 @@ public class MovieServiceImpl implements MovieService {
                 Movie movie = new Movie();
                 updateEntity(movie, dto);
                 movieRepository.save(movie);
-
-                // Nếu có genres thì gán luôn
-                if (dto.getGenreIds() != null && !dto.getGenreIds().isEmpty()) {
-                        List<Genre> genres = genreRepository.findAllById(dto.getGenreIds());
-                        movie.setGenres(new HashSet<>(genres));
-                        movieRepository.save(movie);
-                }
-
-                // Trả về movie kèm genres
                 return convertToDTO(movie);
         }
 
@@ -97,15 +93,7 @@ public class MovieServiceImpl implements MovieService {
         public MovieDTO updateMovie(Long id, MovieRequestDTO dto) {
                 Movie movie = movieRepository.findById(id)
                                 .orElseThrow(() -> new RuntimeException("Movie not found with id: " + id));
-
                 updateEntity(movie, dto);
-
-                // Nếu có genres thì update lại
-                if (dto.getGenreIds() != null) {
-                        List<Genre> genres = genreRepository.findAllById(dto.getGenreIds());
-                        movie.setGenres(new HashSet<>(genres));
-                }
-
                 movieRepository.save(movie);
                 return convertToDTO(movie);
         }
