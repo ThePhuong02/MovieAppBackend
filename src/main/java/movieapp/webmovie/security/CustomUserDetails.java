@@ -26,7 +26,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getEmail(); // Email dùng để login
+        return user.getEmail();
     }
 
     @Override
@@ -52,4 +52,10 @@ public class CustomUserDetails implements UserDetails {
     public User getUser() {
         return user;
     }
+
+    // Trả về id người dùng cho controller/service dùng
+    public Long getId() {
+        return user.getUserID(); // ⚠️ entity của bạn dùng userID
+    }
+
 }

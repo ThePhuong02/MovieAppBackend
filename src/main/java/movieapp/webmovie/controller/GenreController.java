@@ -1,15 +1,18 @@
 package movieapp.webmovie.controller;
 
 import java.util.List;
-import movieapp.webmovie.dto.*;
+import java.util.stream.Collectors;
+
+import movieapp.webmovie.dto.GenreDTO;
+import movieapp.webmovie.dto.MovieDTO;
+import movieapp.webmovie.entity.Genre;
+import movieapp.webmovie.service.GenreService;
 import movieapp.webmovie.service.MovieService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import movieapp.webmovie.entity.Genre;
-import movieapp.webmovie.service.GenreService;
 
 @RestController
 @RequestMapping("/api/genres")
@@ -21,31 +24,34 @@ public class GenreController {
     @Autowired
     private MovieService movieService;
 
+    // ✅ Lấy tất cả thể loại
     @GetMapping
     public ResponseEntity<List<GenreDTO>> getAllGenres() {
         List<GenreDTO> genres = genreService.getAllGenres().stream()
                 .map(g -> new GenreDTO(g.getGenreID(), g.getName()))
-                .toList();
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(genres);
     }
 
+    // ✅ Lấy chi tiết 1 thể loại
     @GetMapping("/{id}")
     public ResponseEntity<?> getGenreById(@PathVariable Long id) {
         Genre genre = genreService.getGenreById(id);
         if (genre == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(genre);
+        return ResponseEntity.ok(new GenreDTO(genre.getGenreID(), genre.getName()));
     }
 
-    // ✅ Lọc phim theo thể loại (ai cũng gọi được)
+    // ✅ Lọc phim theo thể loại (public API)
     @GetMapping("/{id}/movies")
     public ResponseEntity<List<MovieDTO>> getMoviesByGenre(@PathVariable Long id) {
         List<MovieDTO> movies = movieService.getMoviesByGenreId(id);
         return ResponseEntity.ok(movies);
     }
 
+    // ✅ Thêm thể loại
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> addGenre(@RequestBody Genre genre) {
@@ -56,10 +62,11 @@ public class GenreController {
             return ResponseEntity.badRequest().body("Genre name must be less than 100 characters");
         }
 
-        genreService.addGenre(genre);
-        return ResponseEntity.ok(genre);
+        Genre saved = genreService.addGenre(genre);
+        return ResponseEntity.ok(new GenreDTO(saved.getGenreID(), saved.getName()));
     }
 
+    // ✅ Cập nhật thể loại
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateGenre(@PathVariable Long id, @RequestBody Genre genre) {
@@ -68,12 +75,13 @@ public class GenreController {
             if (updated == null) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(new GenreDTO(updated.getGenreID(), updated.getName()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Update failed: " + e.getMessage());
         }
     }
 
+    // ✅ Xóa thể loại
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteGenre(@PathVariable Long id) {

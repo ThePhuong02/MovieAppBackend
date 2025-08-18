@@ -50,7 +50,10 @@ public class SecurityConfig {
                                 "/api/video/upload")
                         .permitAll()
 
-                        // ✅ API upload avatar cho người dùng đã đăng nhập
+                        // ✅ API play phim -> phải đăng nhập
+                        .requestMatchers("/api/movies/*/stream").hasAnyRole("USER", "ADMIN")
+
+                        // ✅ API upload avatar cho user đã login
                         .requestMatchers(HttpMethod.PUT, "/api/auth/upload-avatar")
                         .hasAnyRole("USER", "ADMIN", "STAFF")
 
@@ -67,7 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/payments/me").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/payments/user/**", "/api/payments/all").hasRole("ADMIN")
 
-                        // ✅ Các route còn lại bắt buộc phải đăng nhập
+                        // ✅ Các route còn lại bắt buộc login
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

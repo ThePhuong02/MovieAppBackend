@@ -4,11 +4,18 @@ import movieapp.webmovie.entity.Movie;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 
 @Repository
 public interface MovieRepository extends JpaRepository<Movie, Long> {
 
+    // ✅ Lấy phim theo 1 thể loại
     @Query("SELECT m FROM Movie m JOIN m.genres g WHERE g.genreID = :genreId")
-    List<Movie> findByGenreId(Long genreId);
+    List<Movie> findByGenreId(@Param("genreId") Long genreId);
+
+    // ✅ Lấy phim theo nhiều thể loại (chỉ cần chứa ít nhất 1 thể loại)
+    @Query("SELECT DISTINCT m FROM Movie m JOIN m.genres g WHERE g.genreID IN :genreIds")
+    List<Movie> findByGenreIds(@Param("genreIds") List<Long> genreIds);
 }
