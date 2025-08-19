@@ -17,7 +17,7 @@ public class Subscription {
     @Column(name = "UserID", nullable = false)
     private Long userId;
 
-    @Column(name = "PlanID", nullable = false)
+    @Column(name = "PlanID", nullable = true)
     private Long planId;
 
     @Column(name = "StartDate", columnDefinition = "DATETIME")
@@ -37,5 +37,8 @@ public class Subscription {
 
     @Column(name = "autoRenew")
     private Boolean autoRenew;
+
+    @Column(name = "PricingId")
+    private String pricingId;
 
 }

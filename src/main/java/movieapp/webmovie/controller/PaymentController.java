@@ -2,9 +2,16 @@ package movieapp.webmovie.controller;
 
 import movieapp.webmovie.dto.PaymentHistoryDTO;
 import movieapp.webmovie.dto.WebhookRequest;
+import movieapp.webmovie.entity.Payment;
+import movieapp.webmovie.entity.Subscription;
 import movieapp.webmovie.entity.User;
+import movieapp.webmovie.enums.PaymentStatus;
+import movieapp.webmovie.enums.PaymentType;
 import movieapp.webmovie.service.PaymentService;
+import movieapp.webmovie.service.SubscriptionService;
 import movieapp.webmovie.service.UserService;
+
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,6 +29,9 @@ public class PaymentController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
 
     // ✅ Webhook từ PayPal hoặc các cổng thanh toán
     @PostMapping("/webhook")
@@ -49,5 +59,32 @@ public class PaymentController {
     @GetMapping("/all")
     public ResponseEntity<List<PaymentHistoryDTO>> getAllPayments() {
         return ResponseEntity.ok(paymentService.getAllPayments());
+    }
+
+    // 🔧 Debug: Manually tạo subscription từ payment
+    @PostMapping("/admin/create-subscription/{paymentId}")
+    public ResponseEntity<String> createSubscriptionFromPayment(@PathVariable Long paymentId) {
+        try {
+            Optional<Payment> paymentOpt = paymentService.findByPaymentId(paymentId);
+            if (paymentOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Payment not found");
+            }
+
+            Payment payment = paymentOpt.get();
+            if (payment.getPaymentType() != PaymentType.subscription) {
+                return ResponseEntity.badRequest().body("Payment is not subscription type");
+            }
+
+            if (payment.getPaymentStatus() != PaymentStatus.SUCCESS) {
+                return ResponseEntity.badRequest().body("Payment is not successful");
+            }
+
+            Subscription sub = subscriptionService.createSubscriptionFromPayment(payment);
+            return ResponseEntity.ok("✅ Subscription created with ID: " + sub.getSubscriptionId());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
+        }
     }
 }

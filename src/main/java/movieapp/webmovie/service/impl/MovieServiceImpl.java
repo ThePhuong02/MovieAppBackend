@@ -11,9 +11,9 @@ import movieapp.webmovie.entity.Movie;
 import movieapp.webmovie.enums.AccessLevel;
 import movieapp.webmovie.repository.GenreRepository;
 import movieapp.webmovie.repository.MovieRepository;
-import movieapp.webmovie.repository.SubscriptionRepository;
 import movieapp.webmovie.security.CustomUserDetails;
 import movieapp.webmovie.service.MovieService;
+import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -36,7 +36,7 @@ public class MovieServiceImpl implements MovieService {
 
         private final MovieRepository movieRepository;
         private final GenreRepository genreRepository;
-        private final SubscriptionRepository subscriptionRepository;
+        private final SubscriptionService subscriptionService;
 
         // ---------- Helpers ----------
         private MovieDTO toDTO(Movie m) {
@@ -69,7 +69,7 @@ public class MovieServiceImpl implements MovieService {
 
         private void ensurePlayable(Movie movie, Long userId) {
                 if (movie.getAccessLevel() == AccessLevel.PREMIUM) {
-                        if (userId == null || !subscriptionRepository.existsByUserIdAndIsActiveTrue(userId)) {
+                        if (userId == null || !subscriptionService.hasPremiumAccess(userId)) {
                                 throw new RuntimeException("Bạn cần gói PREMIUM để xem phim này");
                         }
                 }
@@ -224,12 +224,58 @@ public class MovieServiceImpl implements MovieService {
 
                 // Nếu là HTTP(S) (Dropbox, v.v.) -> proxy
                 if (src.startsWith("http://") || src.startsWith("https://")) {
-                        proxyHttpVideo(src, request, response);
+                        // Nếu là Dropbox URL, convert thành streaming URL
+                        String streamingUrl = src;
+                        if (src.contains("dropbox.com")) {
+                                streamingUrl = convertDropboxToStreamingUrl(src);
+                        }
+                        proxyHttpVideo(streamingUrl, request, response);
                         return;
                 }
 
                 // Nếu là file local -> stream có hỗ trợ Range
                 streamLocalFile(src, request, response);
+        }
+
+        // Kiểm tra xem URL có phải là Dropbox URL hợp lệ không
+        private boolean isValidDropboxUrl(String url) {
+                return url != null && url.contains("dropbox.com") &&
+                                (url.contains("/scl/fi/") || url.contains("/s/"));
+        }
+
+        // Convert Dropbox sharing URL thành direct streaming URL
+        private String convertDropboxToStreamingUrl(String dropboxUrl) {
+                try {
+                        if (!isValidDropboxUrl(dropboxUrl)) {
+                                System.out.println("URL không phải là Dropbox URL hợp lệ: " + dropboxUrl);
+                                return dropboxUrl;
+                        }
+
+                        // Dropbox sharing URL format:
+                        // https://www.dropbox.com/scl/fi/xyz/filename?rlkey=...&st=...&dl=0
+                        // Convert thành direct URL:
+                        // https://dl.dropboxusercontent.com/scl/fi/xyz/filename?rlkey=...&st=...
+
+                        if (dropboxUrl.contains("www.dropbox.com")) {
+                                // Loại bỏ tất cả dl parameters
+                                String cleanUrl = dropboxUrl.replaceAll("[&?]dl=[01]", "");
+
+                                // Convert domain từ www.dropbox.com sang dl.dropboxusercontent.com
+                                String directUrl = cleanUrl.replace("www.dropbox.com", "dl.dropboxusercontent.com");
+
+                                System.out.println("✅ Dropbox URL Conversion:");
+                                System.out.println("   Original: " + dropboxUrl);
+                                System.out.println("   Direct: " + directUrl);
+
+                                return directUrl;
+                        }
+
+                        return dropboxUrl;
+                } catch (Exception e) {
+                        System.err.println("❌ Error converting Dropbox URL: " + e.getMessage());
+                        e.printStackTrace();
+                        return dropboxUrl;
+                }
         }
 
         // Proxy qua HTTP(S) và forward Range nếu có
@@ -238,24 +284,66 @@ public class MovieServiceImpl implements MovieService {
                 try {
                         URL url = new URL(urlStr); // <- cần import java.net.URL
                         conn = (HttpURLConnection) url.openConnection();
-                        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+                        // Set headers để Dropbox serve video content thay vì HTML
+                        conn.setRequestProperty("User-Agent",
+                                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                        conn.setRequestProperty("Accept", "video/mp4,video/*,*/*;q=0.9");
+                        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+                        conn.setRequestProperty("Accept-Encoding", "identity");
+                        conn.setRequestProperty("Connection", "keep-alive");
 
                         // Forward Range để trình duyệt có thể tua
                         String range = request.getHeader("Range");
                         if (range != null) {
                                 conn.setRequestProperty("Range", range);
                         }
+
+                        // Thêm timeout để tránh hang
+                        conn.setConnectTimeout(10000); // 10 seconds
+                        conn.setReadTimeout(30000); // 30 seconds
+
                         conn.connect();
 
                         int code = conn.getResponseCode();
+
+                        // Debug logging
+                        System.out.println("Proxying URL: " + urlStr);
+                        System.out.println("Response Code: " + code);
+                        System.out.println("Content-Type: " + conn.getContentType());
+
+                        // Kiểm tra nếu nhận được HTML thay vì video
+                        String contentType = conn.getContentType();
+                        if (contentType != null && contentType.contains("text/html")) {
+                                System.err.println("Error: Received HTML instead of video content");
+                                System.err.println("URL: " + urlStr);
+                                System.err.println("Content-Type: " + contentType);
+                                throw new RuntimeException(
+                                                "URL không hợp lệ cho streaming video. Vui lòng kiểm tra lại URL Dropbox.");
+                        }
+
+                        // Kiểm tra response code
+                        if (code >= 400) {
+                                System.err.println("HTTP Error " + code + " when accessing: " + urlStr);
+                                throw new RuntimeException("Không thể truy cập video: HTTP " + code);
+                        }
+
                         // Thiết lập status phù hợp (206 nếu partial)
                         response.setStatus(
                                         code == HttpURLConnection.HTTP_PARTIAL ? HttpServletResponse.SC_PARTIAL_CONTENT
                                                         : HttpServletResponse.SC_OK);
 
-                        // Content-Type: nếu thiếu, fallback video/mp4
+                        // Content-Type: xử lý đúng cho video streaming
                         String ct = conn.getContentType();
-                        response.setContentType((ct != null && !ct.isBlank()) ? ct : "video/mp4");
+                        if (ct != null && (ct.contains("video/") || ct.contains("application/octet-stream")
+                                        || ct.contains("application/binary"))) {
+                                // Nếu là video content hoặc binary, set thành video/mp4 để browser hiểu
+                                response.setContentType("video/mp4");
+                        } else if (ct != null && !ct.isBlank() && !ct.contains("text/html")) {
+                                response.setContentType(ct);
+                        } else {
+                                response.setContentType("video/mp4");
+                        }
 
                         // Copy các header quan trọng cho seek
                         String contentRange = conn.getHeaderField("Content-Range");
@@ -266,9 +354,17 @@ public class MovieServiceImpl implements MovieService {
                         if (contentLength != null) {
                                 response.setHeader("Content-Length", contentLength);
                         }
-                        // cho phép bytes
+                        // Headers quan trọng cho video streaming
                         response.setHeader("Accept-Ranges", "bytes");
                         response.setHeader("Content-Disposition", "inline; filename=video.mp4");
+                        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+                        response.setHeader("Pragma", "no-cache");
+                        response.setHeader("Expires", "0");
+
+                        // CORS headers nếu cần
+                        response.setHeader("Access-Control-Allow-Origin", "*");
+                        response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+                        response.setHeader("Access-Control-Allow-Headers", "Range");
 
                         try (InputStream in = conn.getInputStream(); OutputStream out = response.getOutputStream()) {
                                 byte[] buf = new byte[8192];

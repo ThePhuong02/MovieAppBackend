@@ -21,4 +21,7 @@ public interface PaymentService {
 
     // Tạo thanh toán thuê phim lẻ
     Payment createMovieRentalPayment(User user, Movie movie);
+
+    // Tìm payment by ID
+    java.util.Optional<Payment> findByPaymentId(Long paymentId);
 }

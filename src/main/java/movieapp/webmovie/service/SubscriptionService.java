@@ -16,4 +16,7 @@ public interface SubscriptionService {
 
     boolean cancelAutoRenew(Long userId);
 
+    // Kiểm tra user có quyền truy cập premium không
+    boolean hasPremiumAccess(Long userId);
+
 }

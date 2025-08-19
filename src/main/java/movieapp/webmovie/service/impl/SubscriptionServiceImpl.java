@@ -3,7 +3,6 @@ package movieapp.webmovie.service.impl;
 import movieapp.webmovie.dto.SubscriptionRequest;
 import movieapp.webmovie.entity.Payment;
 import movieapp.webmovie.entity.Subscription;
-import movieapp.webmovie.repository.PlanRepository;
 import movieapp.webmovie.repository.SubscriptionRepository;
 import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +18,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Autowired
     private SubscriptionRepository subscriptionRepo;
-
-    @Autowired
-    private PlanRepository planRepo;
 
     @Override
     public String subscribe(SubscriptionRequest request) {
@@ -39,6 +35,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
             Map<String, Object> result = new HashMap<>();
             result.put("planId", sub.getPlanId());
+            result.put("pricingId", sub.getPricingId());
             result.put("startDate", sub.getStartDate());
             result.put("endDate", sub.getEndDate());
             result.put("daysLeft", daysLeft);
@@ -55,14 +52,21 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     public Subscription createSubscriptionFromPayment(Payment payment) {
         Long userId = payment.getUserId();
-        Long planId = payment.getPlanId();
+        String pricingId = payment.getPricingId();
 
+        System.out.println("🔍 DEBUG createSubscriptionFromPayment:");
+        System.out.println("  - userId: " + userId);
+        System.out.println("  - pricingId: " + pricingId);
+        System.out.println("  - planId: " + payment.getPlanId());
+
+        // Xác định thời gian dựa trên pricingId
         LocalDateTime now = LocalDateTime.now();
-        int duration = planRepo.findById(planId).map(p -> p.getDurationDays()).orElse(30);
+        int duration = getDurationFromPricingId(pricingId);
 
         Subscription sub = new Subscription();
         sub.setUserId(userId);
-        sub.setPlanId(planId);
+        sub.setPlanId(getDefaultPlanId(payment.getPlanId(), pricingId)); // Tạo default planId
+        sub.setPricingId(pricingId); // Quan trọng: lưu pricingId
         sub.setStartDate(now);
         sub.setEndDate(now.plusDays(duration));
         sub.setIsActive(true);
@@ -70,7 +74,88 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         sub.setIsCancelled(false);
         sub.setPaymentId(payment.getPaymentId());
 
-        return subscriptionRepo.save(sub);
+        System.out.println("  - duration: " + duration + " days");
+        System.out.println("  - endDate: " + sub.getEndDate());
+
+        Subscription savedSub = subscriptionRepo.save(sub);
+        System.out.println("✅ DEBUG: Subscription created with ID: " + savedSub.getSubscriptionId());
+
+        return savedSub;
+    }
+
+    private int getDurationFromPricingId(String pricingId) {
+        if (pricingId == null)
+            return 30;
+
+        if (pricingId.contains("yearly")) {
+            return 365; // 1 năm
+        } else if (pricingId.contains("monthly")) {
+            return 30; // 1 tháng
+        }
+        return 30; // Default
+    }
+
+    @Override
+    public boolean hasPremiumAccess(Long userId) {
+        Optional<Subscription> optionalSub = subscriptionRepo.findTopByUserIdAndIsActiveTrueOrderByEndDateDesc(userId);
+
+        if (optionalSub.isEmpty()) {
+            System.out.println("🔴 DEBUG: No active subscription found for userId: " + userId);
+            return false; // Không có subscription active
+        }
+
+        Subscription sub = optionalSub.get();
+        String pricingId = sub.getPricingId();
+
+        System.out.println("🔍 DEBUG hasPremiumAccess:");
+        System.out.println("  - userId: " + userId);
+        System.out.println("  - subscriptionId: " + sub.getSubscriptionId());
+        System.out.println("  - pricingId: " + pricingId);
+        System.out.println("  - planId: " + sub.getPlanId());
+        System.out.println("  - isActive: " + sub.getIsActive());
+        System.out.println("  - endDate: " + sub.getEndDate());
+
+        // Kiểm tra xem pricingId có grant premium access không
+        boolean isPremium = isPremiumPlan(pricingId);
+        System.out.println("  - isPremiumPlan result: " + isPremium);
+
+        return isPremium;
+    }
+
+    private boolean isPremiumPlan(String pricingId) {
+        if (pricingId == null) {
+            System.out.println("🔴 DEBUG isPremiumPlan: pricingId is null");
+            return false;
+        }
+
+        System.out.println("🔍 DEBUG isPremiumPlan: checking pricingId = " + pricingId);
+
+        // Chỉ premium và standard plan mới có quyền truy cập premium content
+        boolean result = pricingId.startsWith("premium-") || pricingId.startsWith("standard-");
+        System.out.println("🔍 DEBUG isPremiumPlan: result = " + result);
+
+        return result;
+    }
+
+    private Long getDefaultPlanId(Long existingPlanId, String pricingId) {
+        if (existingPlanId != null) {
+            return existingPlanId;
+        }
+
+        // Tạo planId mặc định dựa trên pricingId
+        if (pricingId == null) {
+            return 1L; // Default free plan
+        }
+
+        if (pricingId.startsWith("free")) {
+            return 1L; // Free plan ID
+        } else if (pricingId.startsWith("standard")) {
+            return 2L; // Standard plan ID
+        } else if (pricingId.startsWith("premium")) {
+            return 3L; // Premium plan ID
+        }
+
+        return 1L; // Default fallback
     }
 
     @Override

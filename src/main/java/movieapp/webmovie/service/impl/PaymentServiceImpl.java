@@ -89,6 +89,11 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentRepository.findByTransactionRef(ref);
     }
 
+    @Override
+    public Optional<Payment> findByPaymentId(Long paymentId) {
+        return paymentRepository.findById(paymentId);
+    }
+
     private PaymentHistoryDTO toHistoryDTO(Payment p) {
         String title = null;
         String period = null;

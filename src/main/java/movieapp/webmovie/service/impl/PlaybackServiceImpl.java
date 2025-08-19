@@ -4,6 +4,7 @@ import movieapp.webmovie.entity.*;
 import movieapp.webmovie.enums.AccessLevel;
 import movieapp.webmovie.repository.*;
 import movieapp.webmovie.service.PlaybackService;
+import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +18,13 @@ public class PlaybackServiceImpl implements PlaybackService {
     private PlaybackRightRepository playbackRepo;
 
     @Autowired
-    private SubscriptionRepository subscriptionRepo;
-
-    @Autowired
     private MovieRepository movieRepo;
 
     @Autowired
     private WatchHistoryRepository watchHistoryRepo;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
 
     @Override
     public void grantPlaybackRight(User user, Movie movie, Payment payment, boolean canDownload, int validDays) {
@@ -42,10 +43,12 @@ public class PlaybackServiceImpl implements PlaybackService {
     public boolean hasAccessToMovie(User user, Movie movie) {
         if (movie.getAccessLevel() == AccessLevel.FREE)
             return true;
-        boolean hasPremiumAccess = subscriptionRepo
-                .existsByUserIdAndIsActiveTrue(user.getUserID());
+
+        // Kiểm tra premium access dựa trên pricingId trong subscription
+        boolean hasPremiumAccess = subscriptionService.hasPremiumAccess(user.getUserID());
         if (movie.getAccessLevel() == AccessLevel.PREMIUM && hasPremiumAccess)
             return true;
+
         return playbackRepo.existsByUserIdAndMovieIdAndExpireAtAfter(
                 user.getUserID(), movie.getMovieID(), LocalDateTime.now());
     }
