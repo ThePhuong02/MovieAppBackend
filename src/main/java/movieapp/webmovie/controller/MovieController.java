@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.dto.PlaybackLinkDTO;
 import movieapp.webmovie.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,26 +21,22 @@ public class MovieController {
     @Autowired
     private MovieService movieService;
 
-    // ✅ Lấy danh sách phim (public)
     @GetMapping
     public ResponseEntity<List<MovieDTO>> getAllMovies() {
         return ResponseEntity.ok(movieService.getAllMovies());
     }
 
-    // ✅ Lấy chi tiết phim (public)
     @GetMapping("/{id}")
     public ResponseEntity<MovieDTO> getMovieById(@PathVariable Long id) {
         return ResponseEntity.ok(movieService.getMovieById(id));
     }
 
-    // ✅ Thêm phim (ADMIN)
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MovieDTO> createMovie(@RequestBody MovieRequestDTO movieRequest) {
         return ResponseEntity.ok(movieService.createMovie(movieRequest));
     }
 
-    // ✅ Cập nhật phim (ADMIN)
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MovieDTO> updateMovie(
@@ -48,7 +45,6 @@ public class MovieController {
         return ResponseEntity.ok(movieService.updateMovie(id, movieRequest));
     }
 
-    // ✅ Xóa phim (ADMIN)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
@@ -56,7 +52,14 @@ public class MovieController {
         return ResponseEntity.noContent().build();
     }
 
-    // ✅ Stream video phim (USER/ADMIN mới được xem)
+    // ✅ Link phát cho FE (ưu tiên Bunny Embed)
+    @GetMapping("/{id}/play")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<PlaybackLinkDTO> getPlaybackLink(@PathVariable Long id) {
+        return ResponseEntity.ok(movieService.getPlaybackLink(id));
+    }
+
+    // ✅ Stream direct (Dropbox/local) – dùng khi không có playbackId
     @GetMapping("/{id}/stream")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public void streamMovie(
@@ -65,5 +68,4 @@ public class MovieController {
             HttpServletResponse response) throws IOException {
         movieService.streamVideo(id, request, response);
     }
-
 }
