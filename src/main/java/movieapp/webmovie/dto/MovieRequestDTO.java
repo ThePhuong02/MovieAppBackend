@@ -17,5 +17,6 @@ public class MovieRequestDTO {
     private AccessLevel accessLevel;
     private String trailerURL;
     private String videoURL;
-    private List<Long> genreIds; // Thêm field này
+    private String playbackId; // ✅ thêm
+    private List<Long> genreIds;
 }

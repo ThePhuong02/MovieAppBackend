@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import movieapp.webmovie.dto.GenreDTO;
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.dto.PlaybackLinkDTO;
 import movieapp.webmovie.entity.Genre;
 import movieapp.webmovie.entity.Movie;
 import movieapp.webmovie.enums.AccessLevel;
@@ -14,6 +15,7 @@ import movieapp.webmovie.repository.MovieRepository;
 import movieapp.webmovie.security.CustomUserDetails;
 import movieapp.webmovie.service.MovieService;
 import movieapp.webmovie.service.SubscriptionService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,13 @@ public class MovieServiceImpl implements MovieService {
         private final GenreRepository genreRepository;
         private final SubscriptionService subscriptionService;
 
+        // Lấy từ application.properties
+        @Value("${bunny.libraryId}")
+        private String bunnyLibraryId;
+
+        @Value("${bunny.embedBase:https://iframe.mediadelivery.net/embed}")
+        private String bunnyEmbedBase;
+
         // ---------- Helpers ----------
         private MovieDTO toDTO(Movie m) {
                 return MovieDTO.builder()
@@ -47,9 +56,10 @@ public class MovieServiceImpl implements MovieService {
                                 .duration(m.getDuration())
                                 .year(m.getYear())
                                 .poster(m.getPoster())
-                                .accessLevel(m.getAccessLevel()) // enum -> enum (đúng kiểu)
+                                .accessLevel(m.getAccessLevel())
                                 .trailerURL(m.getTrailerURL())
                                 .videoURL(m.getVideoURL())
+                                .playbackId(m.getPlaybackId()) // ✅ map thêm
                                 .genres(
                                                 m.getGenres().stream()
                                                                 .map(g -> new GenreDTO(g.getGenreID(), g.getName()))
@@ -95,9 +105,10 @@ public class MovieServiceImpl implements MovieService {
                                 .duration(dto.getDuration())
                                 .year(dto.getYear())
                                 .poster(dto.getPoster())
-                                .accessLevel(dto.getAccessLevel()) // dto giữ kiểu AccessLevel
+                                .accessLevel(dto.getAccessLevel())
                                 .trailerURL(dto.getTrailerURL())
                                 .videoURL(dto.getVideoURL())
+                                .playbackId(dto.getPlaybackId()) // ✅ set
                                 .build();
 
                 if (dto.getGenreIds() != null) {
@@ -121,9 +132,10 @@ public class MovieServiceImpl implements MovieService {
                 movie.setDuration(dto.getDuration());
                 movie.setYear(dto.getYear());
                 movie.setPoster(dto.getPoster());
-                movie.setAccessLevel(dto.getAccessLevel()); // enum
+                movie.setAccessLevel(dto.getAccessLevel());
                 movie.setTrailerURL(dto.getTrailerURL());
                 movie.setVideoURL(dto.getVideoURL());
+                movie.setPlaybackId(dto.getPlaybackId()); // ✅ update
 
                 if (dto.getGenreIds() != null) {
                         Set<Genre> genres = dto.getGenreIds().stream()
@@ -208,13 +220,46 @@ public class MovieServiceImpl implements MovieService {
                                 .toList();
         }
 
+        // ---------- Playback link for FE ----------
+        @Override
+        public PlaybackLinkDTO getPlaybackLink(Long movieId) {
+                Movie movie = movieRepository.findById(movieId)
+                                .orElseThrow(() -> new RuntimeException("Không tìm thấy phim"));
+
+                // kiểm tra quyền
+                ensurePlayable(movie, currentUserIdOrNull());
+
+                // Ưu tiên Bunny Embed nếu có playbackId
+                if (StringUtils.hasText(movie.getPlaybackId())) {
+                        String url = String.format(
+                                        "%s/%s/%s?autoplay=true&muted=false",
+                                        bunnyEmbedBase,
+                                        bunnyLibraryId,
+                                        movie.getPlaybackId());
+                        return PlaybackLinkDTO.builder()
+                                        .type("bunny-embed")
+                                        .url(url)
+                                        .build();
+                }
+
+                // Nếu không có playbackId → dùng stream BE (proxy/local)
+                if (StringUtils.hasText(movie.getVideoURL())) {
+                        String url = String.format("/api/movies/%d/stream", movie.getMovieID());
+                        return PlaybackLinkDTO.builder()
+                                        .type("direct")
+                                        .url(url)
+                                        .build();
+                }
+
+                throw new RuntimeException("Phim chưa có nguồn phát (playbackId hoặc videoURL).");
+        }
+
         // ---------- Streaming (proxy HTTP hoặc file local) ----------
         @Override
         public void streamVideo(Long movieId, HttpServletRequest request, HttpServletResponse response) {
                 Movie movie = movieRepository.findById(movieId)
                                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phim"));
 
-                // Kiểm tra quyền xem
                 ensurePlayable(movie, currentUserIdOrNull());
 
                 String src = movie.getVideoURL();
@@ -222,9 +267,7 @@ public class MovieServiceImpl implements MovieService {
                         throw new RuntimeException("Phim chưa có videoURL");
                 }
 
-                // Nếu là HTTP(S) (Dropbox, v.v.) -> proxy
                 if (src.startsWith("http://") || src.startsWith("https://")) {
-                        // Nếu là Dropbox URL, convert thành streaming URL
                         String streamingUrl = src;
                         if (src.contains("dropbox.com")) {
                                 streamingUrl = convertDropboxToStreamingUrl(src);
@@ -233,111 +276,65 @@ public class MovieServiceImpl implements MovieService {
                         return;
                 }
 
-                // Nếu là file local -> stream có hỗ trợ Range
                 streamLocalFile(src, request, response);
         }
 
-        // Kiểm tra xem URL có phải là Dropbox URL hợp lệ không
         private boolean isValidDropboxUrl(String url) {
                 return url != null && url.contains("dropbox.com") &&
                                 (url.contains("/scl/fi/") || url.contains("/s/"));
         }
 
-        // Convert Dropbox sharing URL thành direct streaming URL
         private String convertDropboxToStreamingUrl(String dropboxUrl) {
                 try {
-                        if (!isValidDropboxUrl(dropboxUrl)) {
-                                System.out.println("URL không phải là Dropbox URL hợp lệ: " + dropboxUrl);
+                        if (!isValidDropboxUrl(dropboxUrl))
                                 return dropboxUrl;
-                        }
-
-                        // Dropbox sharing URL format:
-                        // https://www.dropbox.com/scl/fi/xyz/filename?rlkey=...&st=...&dl=0
-                        // Convert thành direct URL:
-                        // https://dl.dropboxusercontent.com/scl/fi/xyz/filename?rlkey=...&st=...
 
                         if (dropboxUrl.contains("www.dropbox.com")) {
-                                // Loại bỏ tất cả dl parameters
                                 String cleanUrl = dropboxUrl.replaceAll("[&?]dl=[01]", "");
-
-                                // Convert domain từ www.dropbox.com sang dl.dropboxusercontent.com
-                                String directUrl = cleanUrl.replace("www.dropbox.com", "dl.dropboxusercontent.com");
-
-                                System.out.println("✅ Dropbox URL Conversion:");
-                                System.out.println("   Original: " + dropboxUrl);
-                                System.out.println("   Direct: " + directUrl);
-
-                                return directUrl;
+                                return cleanUrl.replace("www.dropbox.com", "dl.dropboxusercontent.com");
                         }
-
                         return dropboxUrl;
                 } catch (Exception e) {
-                        System.err.println("❌ Error converting Dropbox URL: " + e.getMessage());
-                        e.printStackTrace();
                         return dropboxUrl;
                 }
         }
 
-        // Proxy qua HTTP(S) và forward Range nếu có
         private void proxyHttpVideo(String urlStr, HttpServletRequest request, HttpServletResponse response) {
                 HttpURLConnection conn = null;
                 try {
-                        URL url = new URL(urlStr); // <- cần import java.net.URL
+                        URL url = new URL(urlStr);
                         conn = (HttpURLConnection) url.openConnection();
-
-                        // Set headers để Dropbox serve video content thay vì HTML
                         conn.setRequestProperty("User-Agent",
-                                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36");
                         conn.setRequestProperty("Accept", "video/mp4,video/*,*/*;q=0.9");
                         conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
                         conn.setRequestProperty("Accept-Encoding", "identity");
                         conn.setRequestProperty("Connection", "keep-alive");
 
-                        // Forward Range để trình duyệt có thể tua
                         String range = request.getHeader("Range");
-                        if (range != null) {
+                        if (range != null)
                                 conn.setRequestProperty("Range", range);
-                        }
 
-                        // Thêm timeout để tránh hang
-                        conn.setConnectTimeout(10000); // 10 seconds
-                        conn.setReadTimeout(30000); // 30 seconds
-
+                        conn.setConnectTimeout(10000);
+                        conn.setReadTimeout(30000);
                         conn.connect();
 
                         int code = conn.getResponseCode();
+                        String ct = conn.getContentType();
 
-                        // Debug logging
-                        System.out.println("Proxying URL: " + urlStr);
-                        System.out.println("Response Code: " + code);
-                        System.out.println("Content-Type: " + conn.getContentType());
-
-                        // Kiểm tra nếu nhận được HTML thay vì video
-                        String contentType = conn.getContentType();
-                        if (contentType != null && contentType.contains("text/html")) {
-                                System.err.println("Error: Received HTML instead of video content");
-                                System.err.println("URL: " + urlStr);
-                                System.err.println("Content-Type: " + contentType);
-                                throw new RuntimeException(
-                                                "URL không hợp lệ cho streaming video. Vui lòng kiểm tra lại URL Dropbox.");
+                        if (ct != null && ct.contains("text/html")) {
+                                throw new RuntimeException("URL không hợp lệ cho streaming video.");
                         }
-
-                        // Kiểm tra response code
                         if (code >= 400) {
-                                System.err.println("HTTP Error " + code + " when accessing: " + urlStr);
                                 throw new RuntimeException("Không thể truy cập video: HTTP " + code);
                         }
 
-                        // Thiết lập status phù hợp (206 nếu partial)
-                        response.setStatus(
-                                        code == HttpURLConnection.HTTP_PARTIAL ? HttpServletResponse.SC_PARTIAL_CONTENT
-                                                        : HttpServletResponse.SC_OK);
+                        response.setStatus(code == HttpURLConnection.HTTP_PARTIAL
+                                        ? HttpServletResponse.SC_PARTIAL_CONTENT
+                                        : HttpServletResponse.SC_OK);
 
-                        // Content-Type: xử lý đúng cho video streaming
-                        String ct = conn.getContentType();
                         if (ct != null && (ct.contains("video/") || ct.contains("application/octet-stream")
                                         || ct.contains("application/binary"))) {
-                                // Nếu là video content hoặc binary, set thành video/mp4 để browser hiểu
                                 response.setContentType("video/mp4");
                         } else if (ct != null && !ct.isBlank() && !ct.contains("text/html")) {
                                 response.setContentType(ct);
@@ -345,23 +342,19 @@ public class MovieServiceImpl implements MovieService {
                                 response.setContentType("video/mp4");
                         }
 
-                        // Copy các header quan trọng cho seek
                         String contentRange = conn.getHeaderField("Content-Range");
-                        if (contentRange != null) {
+                        if (contentRange != null)
                                 response.setHeader("Content-Range", contentRange);
-                        }
                         String contentLength = conn.getHeaderField("Content-Length");
-                        if (contentLength != null) {
+                        if (contentLength != null)
                                 response.setHeader("Content-Length", contentLength);
-                        }
-                        // Headers quan trọng cho video streaming
+
                         response.setHeader("Accept-Ranges", "bytes");
                         response.setHeader("Content-Disposition", "inline; filename=video.mp4");
                         response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
                         response.setHeader("Pragma", "no-cache");
                         response.setHeader("Expires", "0");
 
-                        // CORS headers nếu cần
                         response.setHeader("Access-Control-Allow-Origin", "*");
                         response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
                         response.setHeader("Access-Control-Allow-Headers", "Range");
@@ -382,7 +375,6 @@ public class MovieServiceImpl implements MovieService {
                 }
         }
 
-        // Stream file local với Range
         private void streamLocalFile(String path, HttpServletRequest request, HttpServletResponse response) {
                 File file = new File(path);
                 if (!file.exists())

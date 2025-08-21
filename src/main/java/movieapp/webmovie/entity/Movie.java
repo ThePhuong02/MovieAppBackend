@@ -48,6 +48,10 @@ public class Movie {
     @Column(name = "VideoURL")
     private String videoURL;
 
+    // ✅ Thêm playbackId để nhúng Bunny
+    @Column(name = "PlaybackId")
+    private String playbackId;
+
     @ManyToMany
     @JoinTable(name = "MovieGenres", joinColumns = @JoinColumn(name = "MovieID"), inverseJoinColumns = @JoinColumn(name = "GenreID"))
     private Set<Genre> genres = new HashSet<>();
