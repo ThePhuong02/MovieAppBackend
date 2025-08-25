@@ -2,8 +2,10 @@ package movieapp.webmovie.service.impl;
 
 import movieapp.webmovie.dto.SubscriptionRequest;
 import movieapp.webmovie.entity.Payment;
+import movieapp.webmovie.entity.Plan;
 import movieapp.webmovie.entity.Subscription;
 import movieapp.webmovie.repository.SubscriptionRepository;
+import movieapp.webmovie.repository.PlanRepository;
 import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,6 +20,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Autowired
     private SubscriptionRepository subscriptionRepo;
+
+    @Autowired
+    private PlanRepository planRepository;
 
     @Override
     public String subscribe(SubscriptionRequest request) {
@@ -117,8 +122,20 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         // Kiểm tra xem pricingId có grant premium access không
         boolean isPremium = isPremiumPlan(pricingId);
-        System.out.println("  - isPremiumPlan result: " + isPremium);
 
+        // Nếu có planId, kiểm tra grantsPremiumAccess từ database
+        if (sub.getPlanId() != null) {
+            Optional<Plan> planOpt = planRepository.findById(sub.getPlanId());
+            if (planOpt.isPresent()) {
+                Plan plan = planOpt.get();
+                boolean dbResult = plan.getGrantsPremiumAccess() != null && plan.getGrantsPremiumAccess();
+                System.out.println("  - grantsPremiumAccess from DB: " + dbResult);
+                System.out.println("  - Plan name: " + plan.getName());
+                return dbResult;
+            }
+        }
+
+        System.out.println("  - isPremiumPlan result (fallback): " + isPremium);
         return isPremium;
     }
 
@@ -142,20 +159,48 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return existingPlanId;
         }
 
-        // Tạo planId mặc định dựa trên pricingId
+        // Tìm planId thực từ database dựa trên pricingId
         if (pricingId == null) {
-            return 1L; // Default free plan
+            // Tìm free plan
+            return planRepository.findByName("Free Plan")
+                    .map(Plan::getPlanId)
+                    .orElse(null);
         }
 
-        if (pricingId.startsWith("free")) {
-            return 1L; // Free plan ID
-        } else if (pricingId.startsWith("standard")) {
-            return 2L; // Standard plan ID
-        } else if (pricingId.startsWith("premium")) {
-            return 3L; // Premium plan ID
-        }
+        try {
+            Plan plan = null;
 
-        return 1L; // Default fallback
+            if (pricingId.startsWith("free")) {
+                plan = planRepository.findByName("Free Plan").orElse(null);
+            } else if (pricingId.startsWith("standard")) {
+                if (pricingId.contains("yearly")) {
+                    plan = planRepository.findByNameAndDurationDays("Standard Plan", 365).orElse(null);
+                } else {
+                    plan = planRepository.findByNameAndDurationDays("Standard Plan", 30).orElse(null);
+                }
+            } else if (pricingId.startsWith("premium")) {
+                if (pricingId.contains("yearly")) {
+                    plan = planRepository.findByNameAndDurationDays("Premium Plan", 365).orElse(null);
+                } else {
+                    plan = planRepository.findByNameAndDurationDays("Premium Plan", 30).orElse(null);
+                }
+            }
+
+            if (plan != null) {
+                System.out.println("✅ Found plan from DB: " + plan.getName() + " (ID: " + plan.getPlanId() + ")");
+                return plan.getPlanId();
+            } else {
+                System.err.println("❌ No plan found for pricingId: " + pricingId);
+                // Fallback: tìm free plan
+                return planRepository.findByName("Free Plan")
+                        .map(Plan::getPlanId)
+                        .orElse(null);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error finding plan: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @Override

@@ -7,6 +7,7 @@ import movieapp.webmovie.enums.PaymentType;
 import movieapp.webmovie.repository.PaymentRepository;
 import movieapp.webmovie.repository.PlanRepository;
 import movieapp.webmovie.service.PayPalService;
+import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +29,9 @@ public class PayPalController {
 
     @Autowired
     private PlanRepository planRepo;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
 
     // ✅ 1. Tạo đơn hàng PayPal
     @PostMapping("/create-order")
@@ -54,6 +58,7 @@ public class PayPalController {
             String pricingId = request.getPricingId();
             switch (pricingId) {
                 case "free":
+                case "free-yearly":
                     amount = BigDecimal.ZERO;
                     // Gói free: không phân biệt theo tháng/năm, map 1 plan duy nhất nếu có
                     resolvedPlanId = planRepo
@@ -133,7 +138,21 @@ public class PayPalController {
                 payment.setPaymentStatus(PaymentStatus.SUCCESS);
                 paymentRepo.save(payment);
 
-                return "Thanh toán & kích hoạt gói thành công ";
+                // ✅ Tạo subscription sau khi thanh toán thành công
+                try {
+                    if (payment.getPaymentType() == PaymentType.subscription) {
+                        Subscription subscription = subscriptionService.createSubscriptionFromPayment(payment);
+                        System.out.println("✅ Subscription created successfully: " + subscription.getSubscriptionId());
+                        return "Thanh toán & kích hoạt gói thành công! Subscription ID: "
+                                + subscription.getSubscriptionId();
+                    } else {
+                        return "Thanh toán thành công!";
+                    }
+                } catch (Exception e) {
+                    System.err.println("❌ Error creating subscription: " + e.getMessage());
+                    e.printStackTrace();
+                    return "Thanh toán thành công nhưng có lỗi khi tạo subscription: " + e.getMessage();
+                }
             } else {
                 return "⚠ Không tìm thấy giao dịch với mã: " + transactionRef;
             }
