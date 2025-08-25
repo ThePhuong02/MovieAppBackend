@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class RatingService {
@@ -16,8 +15,7 @@ public class RatingService {
     private RatingRepository ratingRepo;
 
     public Rating rate(RatingRequest req) {
-        Optional<Rating> existing = ratingRepo.findByUserIdAndMovieId(req.getUserId(), req.getMovieId());
-        Rating rating = existing.orElse(new Rating());
+        Rating rating = new Rating();
         rating.setUserId(req.getUserId());
         rating.setMovieId(req.getMovieId());
         rating.setStars(req.getStars());
@@ -28,5 +26,22 @@ public class RatingService {
 
     public List<Rating> getRatings(Long movieId) {
         return ratingRepo.findByMovieId(movieId);
+    }
+
+    public Rating updateRating(Long ratingId, RatingRequest req) {
+        Rating rating = ratingRepo.findById(ratingId)
+                .orElseThrow(() -> new RuntimeException("Rating not found with id: " + ratingId));
+
+        rating.setStars(req.getStars());
+        rating.setComment(req.getComment());
+        rating.setCreatedAt(LocalDateTime.now());
+        return ratingRepo.save(rating);
+    }
+
+    public void deleteRating(Long ratingId) {
+        if (!ratingRepo.existsById(ratingId)) {
+            throw new RuntimeException("Rating not found with id: " + ratingId);
+        }
+        ratingRepo.deleteById(ratingId);
     }
 }
