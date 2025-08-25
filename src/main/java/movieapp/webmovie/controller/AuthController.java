@@ -9,8 +9,10 @@ import movieapp.webmovie.service.EmailService;
 import movieapp.webmovie.service.UserService;
 import movieapp.webmovie.service.UserDeviceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,7 +46,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterDTO dto) {
         if (userService.findByEmail(dto.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email đã tồn tại");
+            return ResponseEntity.badRequest().body(Map.of("message", "Email already exists"));
         }
 
         User user = new User();
@@ -55,24 +57,29 @@ public class AuthController {
         user.setAvatar("/uploads/default-avatar.png"); // Avatar mặc định
 
         userService.saveUser(user);
-        return ResponseEntity.ok("Đăng ký thành công");
+        return ResponseEntity.ok(Map.of("message", "Đăng ký thành công"));
     }
 
     // ✅ Đăng nhập
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO dto, HttpServletRequest request) {
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
-        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-        User user = userDetails.getUser();
-        String token = jwtTokenUtil.generateToken(user);
+        try {
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
+            CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+            User user = userDetails.getUser();
+            String token = jwtTokenUtil.generateToken(user);
 
-        // Lưu thông tin thiết bị
-        String ipAddress = request.getRemoteAddr();
-        String deviceName = request.getHeader("User-Agent");
-        userDeviceService.saveLoginSession(user, token, ipAddress, deviceName);
+            // Lưu thông tin thiết bị
+            String ipAddress = request.getRemoteAddr();
+            String deviceName = request.getHeader("User-Agent");
+            userDeviceService.saveLoginSession(user, token, ipAddress, deviceName);
 
-        return ResponseEntity.ok(new AuthResponseDTO(token));
+            return ResponseEntity.ok(new AuthResponseDTO(token));
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Email or password is incorrect"));
+        }
     }
 
     // ✅ Lấy thông tin user đang đăng nhập

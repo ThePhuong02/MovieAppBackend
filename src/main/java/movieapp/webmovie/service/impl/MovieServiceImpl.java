@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import movieapp.webmovie.dto.GenreDTO;
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.dto.PagedMovieResponse;
 import movieapp.webmovie.dto.PlaybackLinkDTO;
 import movieapp.webmovie.entity.Genre;
 import movieapp.webmovie.entity.Movie;
@@ -16,6 +17,9 @@ import movieapp.webmovie.security.CustomUserDetails;
 import movieapp.webmovie.service.MovieService;
 import movieapp.webmovie.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -218,6 +222,35 @@ public class MovieServiceImpl implements MovieService {
                                 .filter(m -> m.getGenres().stream().anyMatch(g -> genreIds.contains(g.getGenreID())))
                                 .map(this::toDTO)
                                 .toList();
+        }
+
+        // ---------- Search ----------
+        @Override
+        public PagedMovieResponse searchMovies(String query, int page, int limit) {
+                // Kiểm tra tham số
+                if (query == null || query.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Query parameter không được để trống");
+                }
+
+                // Tạo Pageable (Spring Data JPA bắt đầu từ page 0)
+                Pageable pageable = PageRequest.of(page - 1, limit);
+
+                // Thực hiện tìm kiếm
+                Page<Movie> moviePage = movieRepository.searchMovies(query.trim(), pageable);
+
+                // Chuyển đổi kết quả
+                List<MovieDTO> movieDTOs = moviePage.getContent()
+                                .stream()
+                                .map(this::toDTO)
+                                .toList();
+
+                // Trả về kết quả phân trang
+                return PagedMovieResponse.builder()
+                                .data(movieDTOs)
+                                .totalPages(moviePage.getTotalPages())
+                                .currentPage(page)
+                                .totalItems(moviePage.getTotalElements())
+                                .build();
         }
 
         // ---------- Playback link for FE ----------

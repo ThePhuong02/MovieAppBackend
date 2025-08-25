@@ -2,6 +2,7 @@ package movieapp.webmovie.service;
 
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
+import movieapp.webmovie.dto.PagedMovieResponse;
 import movieapp.webmovie.dto.PlaybackLinkDTO;
 import movieapp.webmovie.entity.Genre;
 
@@ -34,6 +35,9 @@ public interface MovieService {
     List<MovieDTO> getMoviesByGenreId(Long genreId);
 
     List<MovieDTO> getMoviesByGenreIds(List<Long> genreIds);
+
+    // ✅ Tìm kiếm phim với phân trang
+    PagedMovieResponse searchMovies(String query, int page, int limit);
 
     // ✅ Trả về link phát (bunny/direct) – dùng bởi FE
     PlaybackLinkDTO getPlaybackLink(Long movieId);
