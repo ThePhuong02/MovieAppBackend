@@ -5,7 +5,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import movieapp.webmovie.dto.MovieDTO;
 import movieapp.webmovie.dto.MovieRequestDTO;
 import movieapp.webmovie.dto.PlaybackLinkDTO;
+import movieapp.webmovie.entity.User;
+import movieapp.webmovie.security.JwtTokenUtil;
 import movieapp.webmovie.service.MovieService;
+import movieapp.webmovie.service.WatchHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,6 +23,12 @@ public class MovieController {
 
     @Autowired
     private MovieService movieService;
+
+    @Autowired
+    private WatchHistoryService watchHistoryService;
+
+    @Autowired
+    private JwtTokenUtil jwtTokenUtil;
 
     @GetMapping
     public ResponseEntity<List<MovieDTO>> getAllMovies() {
@@ -55,7 +64,12 @@ public class MovieController {
     // ✅ Link phát cho FE (ưu tiên Bunny Embed)
     @GetMapping("/{id}/play")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<PlaybackLinkDTO> getPlaybackLink(@PathVariable Long id) {
+    public ResponseEntity<PlaybackLinkDTO> getPlaybackLink(@PathVariable Long id, HttpServletRequest request) {
+        User user = jwtTokenUtil.getUserFromRequest(request);
+
+        // ✅ Lưu timestamp khi bắt đầu xem phim
+        watchHistoryService.logWatchHistory(user.getUserID(), id);
+
         return ResponseEntity.ok(movieService.getPlaybackLink(id));
     }
 
@@ -66,6 +80,11 @@ public class MovieController {
             @PathVariable Long id,
             HttpServletRequest request,
             HttpServletResponse response) throws IOException {
+        User user = jwtTokenUtil.getUserFromRequest(request);
+
+        // ✅ Lưu timestamp khi bắt đầu xem phim
+        watchHistoryService.logWatchHistory(user.getUserID(), id);
+
         movieService.streamVideo(id, request, response);
     }
 }

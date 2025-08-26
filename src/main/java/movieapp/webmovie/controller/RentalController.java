@@ -65,8 +65,8 @@ public class RentalController {
         boolean allowed = playbackService.hasAccessToMovie(user, movie);
 
         if (allowed) {
-            // ✅ Mặc định lưu 100% đã xem, FE có thể sửa sau
-            watchHistoryService.logWatchHistory(user.getUserID(), movieId, 100.0);
+            // ✅ Lưu lịch sử xem phim (timestamp)
+            watchHistoryService.logWatchHistory(user.getUserID(), movieId);
             return ResponseEntity.ok(movie.getVideoURL());
         }
 

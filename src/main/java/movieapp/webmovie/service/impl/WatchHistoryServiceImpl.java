@@ -15,13 +15,18 @@ public class WatchHistoryServiceImpl implements WatchHistoryService {
     private WatchHistoryRepository watchHistoryRepository;
 
     @Override
-    public void logWatchHistory(Long userId, Long movieId, Double watchedPercent) {
-        WatchHistory history = WatchHistory.builder()
-                .userId(userId)
-                .movieId(movieId)
-                .watchedAt(LocalDateTime.now())
-                .watchedPercent(watchedPercent)
-                .build();
+    public void logWatchHistory(Long userId, Long movieId) {
+        // ✅ Kiểm tra xem đã có lịch sử xem chưa
+        WatchHistory history = watchHistoryRepository.findByUserIdAndMovieId(userId, movieId)
+                .orElse(WatchHistory.builder()
+                        .userId(userId)
+                        .movieId(movieId)
+                        .watchedPercent(0.0) // Set default
+                        .build());
+
+        // ✅ Chỉ cập nhật thời gian xem (lần cuối xem)
+        history.setWatchedAt(LocalDateTime.now());
+
         watchHistoryRepository.save(history);
     }
 }
