@@ -16,6 +16,7 @@ public class WatchHistoryResponse {
     private Long movieId;
     private String movieTitle;
     private String moviePoster;
-    private LocalDateTime watchedAt;
-    private Long watchedMinutes; // Số phút đã xem (từ lúc bắt đầu đến hiện tại)
+
+    private LocalDateTime watchedAt; // thời điểm gần nhất xem
+    private Double watchedPercent; // % đã xem
 }
