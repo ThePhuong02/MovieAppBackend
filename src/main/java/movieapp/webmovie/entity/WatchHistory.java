@@ -29,4 +29,5 @@ public class WatchHistory {
 
     @Column(name = "WatchedPercent")
     private Double watchedPercent;
+
 }

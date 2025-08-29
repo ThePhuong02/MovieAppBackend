@@ -131,6 +131,12 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    // ✅ Bổ sung hàm findById
+    @Override
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
+    }
+
     // Trả về full URL để hiển thị ngoài frontend
     private String getFullAvatarUrl(String avatarPath) {
         if (avatarPath == null || avatarPath.isBlank())

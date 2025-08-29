@@ -1,6 +1,7 @@
 package movieapp.webmovie.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import movieapp.webmovie.dto.ProgressRequest;
 import movieapp.webmovie.dto.WatchHistoryResponse;
 import movieapp.webmovie.entity.Movie;
 import movieapp.webmovie.entity.User;
@@ -13,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,13 +30,12 @@ public class WatchHistoryController {
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
 
-    // ✅ Lấy lịch sử xem phim của người dùng
+    // ✅ Lấy lịch sử xem phim
     @GetMapping("/my")
     public ResponseEntity<List<WatchHistoryResponse>> getMyWatchHistory(HttpServletRequest request) {
         User user = jwtTokenUtil.getUserFromRequest(request);
         List<WatchHistory> historyList = watchHistoryRepository.findByUserId(user.getUserID());
 
-        // ✅ Map entity thành response DTO với thông tin phim
         List<WatchHistoryResponse> responseList = historyList.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -44,17 +43,29 @@ public class WatchHistoryController {
         return ResponseEntity.ok(responseList);
     }
 
-    // ✅ Helper method để map entity thành DTO
+    // ✅ Cập nhật tiến độ xem (chỉ lưu %)
+    @PatchMapping("/{movieId}/progress")
+    public ResponseEntity<?> updateProgress(HttpServletRequest request,
+            @PathVariable Long movieId,
+            @RequestBody ProgressRequest req) {
+        User user = jwtTokenUtil.getUserFromRequest(request);
+
+        WatchHistory history = watchHistoryRepository.findByUserIdAndMovieId(user.getUserID(), movieId)
+                .orElseGet(() -> WatchHistory.builder()
+                        .userId(user.getUserID())
+                        .movieId(movieId)
+                        .build());
+
+        history.setWatchedAt(LocalDateTime.now());
+        history.setWatchedPercent(req.getPercent());
+
+        watchHistoryRepository.save(history);
+        return ResponseEntity.ok("Progress updated");
+    }
+
+    // ✅ Helper method để map entity → DTO
     private WatchHistoryResponse mapToResponse(WatchHistory history) {
         Movie movie = movieRepository.findById(history.getMovieId()).orElse(null);
-
-        // ✅ Tính số phút đã xem từ watchedAt đến hiện tại
-        long watchedMinutes = 0;
-        if (history.getWatchedAt() != null) {
-            watchedMinutes = ChronoUnit.MINUTES.between(history.getWatchedAt(), LocalDateTime.now());
-            // Nếu âm thì set về 0 (trường hợp lỗi thời gian)
-            watchedMinutes = Math.max(0, watchedMinutes);
-        }
 
         return WatchHistoryResponse.builder()
                 .historyId(history.getHistoryId())
@@ -62,7 +73,7 @@ public class WatchHistoryController {
                 .movieTitle(movie != null ? movie.getTitle() : "Phim không tồn tại")
                 .moviePoster(movie != null ? movie.getPoster() : null)
                 .watchedAt(history.getWatchedAt())
-                .watchedMinutes(watchedMinutes)
+                .watchedPercent(history.getWatchedPercent())
                 .build();
     }
 }
