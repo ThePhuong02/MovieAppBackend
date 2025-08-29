@@ -1,7 +1,9 @@
 package movieapp.webmovie.controller;
 
+import movieapp.webmovie.dto.DashboardStatsDTO;
 import movieapp.webmovie.dto.UserResponseDTO;
 import movieapp.webmovie.dto.UserRoleUpdateRequest;
+import movieapp.webmovie.service.AdminService;
 import movieapp.webmovie.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.List;
 public class AdminController {
 
     private final UserService userService;
+    private final AdminService adminService;
 
     // ✅ Cập nhật vai trò người dùng
     @PutMapping("/users/{id}/role")
@@ -33,5 +36,12 @@ public class AdminController {
     @GetMapping("/users")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUserResponses());
+    }
+
+    // ✅ API Dashboard Stats - Lấy thống kê tổng quan
+    @GetMapping("/dashboard/stats")
+    public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
+        DashboardStatsDTO stats = adminService.getDashboardStats();
+        return ResponseEntity.ok(stats);
     }
 }
