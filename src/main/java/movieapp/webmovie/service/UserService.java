@@ -26,4 +26,7 @@ public interface UserService {
     void updateAvatarByLink(User user, String avatarUrl);
 
     void updateAvatarByFile(User user, MultipartFile avatarFile) throws IOException;
+
+    // ✅ Thêm hàm mới
+    Optional<User> findById(Long id);
 }
