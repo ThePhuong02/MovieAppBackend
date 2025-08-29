@@ -62,6 +62,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Optional<User> findById(Long userId) {
+        return userRepository.findById(userId);
+    }
+
+    @Override
     public Optional<User> findByResetToken(String token) {
         return userRepository.findByResetToken(token);
     }
